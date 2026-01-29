@@ -1,0 +1,92 @@
+
+DANH SÁCH CÔNG VIỆC TOÀN DỰ ÁN
+Giai đoạn 1: Khởi tạo & Database (Đã xong)
+1.[x] Cài đặt môi trường (Node.js, PostgreSQL, VS Code, Flutter).
+
+2.[x] Tạo cấu trúc thư mục (server, web-app, mobile-app).
+
+3.[x] Tạo Database student_management trong pgAdmin.
+
+4.[x] Chạy Script SQL tạo bảng và dữ liệu mẫu.
+
+Giai đoạn 2: Backend Core (Chúng ta đang ở đây)
+5.[x] Cài đặt thư viện cho Server (express, pg, cors, dotenv).
+
+6.[x] Viết file server.js kết nối Database & chạy thử server.
+
+7.[x] Tạo project trên Firebase Console & bật Authentication.
+
+8.[x] Tải file serviceAccountKey.json về server.
+
+9.[x] Viết API Đăng nhập (POST /api/auth/login).
+
+10.[x] Viết API Lấy danh sách User (GET /api/users).
+
+11.[x] Viết API Tạo User mới (POST /api/users).
+
+Giai đoạn 3: Web Admin (ReactJS)
+12.[x] Khởi tạo React App & cài thư viện (axios, firebase, antd).
+
+13.[x] Làm màn hình Login & tích hợp Google Sign-in.
+
+14.[x] Làm Layout Dashboard (Menu bên trái).
+
+15.[x] Xử lý phân quyền (Ẩn menu nếu không phải Admin).
+
+16.[x] Backend: API Quản lý Khoa & Ngành.
+
+17.[x] Frontend: Giao diện Danh sách Khoa & Ngành (Thêm/Sửa/Xóa).
+
+18.[x] Backend: API Quản lý Môn học (subjects).
+
+19.[x] Frontend: Giao diện Danh sách Môn học.
+
+Giai đoạn 4: Lớp học phần & Xếp lịch
+20.[ ] Backend: API Tạo Lớp học phần (course_sections).
+
+21.[ ] Frontend: Form mở lớp (Chọn Giảng viên, Môn học, Học kỳ).
+
+22.[ ] Backend: API Xếp lịch học (schedules).
+
+23.[ ] Frontend: Giao diện hiển thị thời khóa biểu của lớp.
+
+24.[ ] Backend: API Thêm sinh viên vào lớp.
+
+25.[ ] Frontend: Chức năng gán sinh viên vào lớp học phần.
+
+Giai đoạn 5: Web Giảng viên (Quản lý điểm)
+26.[ ] Backend: API Lấy danh sách lớp của Giảng viên.
+
+27.[ ] Frontend: Màn hình "Lớp của tôi" (Dành cho GV).
+
+28.[ ] Frontend: Bảng nhập điểm (Chuyên cần, Giữa kỳ, Cuối kỳ).
+
+29.[ ] Backend: API Lưu điểm & Gửi duyệt.
+
+30.[ ] Admin: Màn hình Duyệt bảng điểm.
+
+31.[ ] Backend: Logic đổi trạng thái điểm sang APPROVED.
+
+Giai đoạn 6: Mobile App (Sinh viên)
+32.[ ] Setup Flutter & Màn hình Login.
+
+33.[ ] Backend: API Lấy lịch học cá nhân.
+
+34.[ ] Mobile: Hiển thị Thời khóa biểu (Tuần/Ngày).
+
+35.[ ] Backend: API Lấy bảng điểm cá nhân.
+
+36.[ ] Mobile: Hiển thị Kết quả học tập.
+
+37.[ ] Mobile: Form Gửi yêu cầu (Phúc khảo/Bảo lưu).
+
+38.[ ] Backend: API Xử lý yêu cầu học vụ.
+
+Giai đoạn 7: Hoàn thiện
+39.[ ] Tích hợp Thông báo (Firebase Cloud Messaging).
+
+40.[ ] Làm màn hình Thống kê (Biểu đồ) trên Web.
+
+41.[ ] Kiểm thử toàn bộ (Test luồng).
+
+42.[ ] Sửa lỗi & Đóng gói dự án.

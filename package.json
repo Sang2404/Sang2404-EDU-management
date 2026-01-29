@@ -1,0 +1,13 @@
+{
+  "name": "student-management-system",
+  "version": "1.0.0",
+  "description": "Root script to run fullstack",
+  "scripts": {
+    "start": "npm run dev",
+    "dev": "concurrently \"npm run dev --prefix server\" \"npm run dev --prefix web-app\"",
+    "install-all": "npm install && npm install --prefix server && npm install --prefix web-app"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  }
+}
