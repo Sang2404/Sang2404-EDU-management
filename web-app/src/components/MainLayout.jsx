@@ -128,11 +128,23 @@ const MainLayout = () => {
         label: 'Nhập điểm',
         hidden: user.role !== 'LECTURER',
       },
+      {
+        key: '/lecturer/schedule',
+        icon: <CalendarOutlined />,
+        label: 'Lịch giảng dạy',
+        hidden: user.role !== 'LECTURER',
+      },
       // Student menu items
       {
         key: '/student/schedule',
         icon: <CalendarOutlined />,
         label: 'Lịch học',
+        hidden: user.role !== 'STUDENT',
+      },
+      {
+        key: '/student/grades',
+        icon: <FileTextOutlined />,
+        label: 'Bảng điểm',
         hidden: user.role !== 'STUDENT',
       },
     ];

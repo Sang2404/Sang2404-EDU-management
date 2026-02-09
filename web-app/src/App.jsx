@@ -15,7 +15,9 @@ import AcademicRequestsPage from './pages/admin/AcademicRequestsPage';
 import StatisticsPage from './pages/admin/StatisticsPage';
 import MySectionsPage from './pages/lecturer/MySectionsPage';
 import GradeEntryPage from './pages/lecturer/GradeEntryPage';
+import TeachingSchedulePage from './pages/lecturer/TeachingSchedulePage';
 import SchedulePage from './pages/student/SchedulePage';
+import GradesPage from './pages/student/GradesPage';
 import { Result } from 'antd';
 
 const NotFound = () => <Result status="404" title="404" subTitle="Xin lỗi, trang bạn truy cập không tồn tại." />;
@@ -58,11 +60,13 @@ function App() {
         <Route element={<ProtectedRoute allowedRoles={['LECTURER']} />}>
           <Route path="lecturer/my-sections" element={<MySectionsPage />} />
           <Route path="lecturer/grade-entry" element={<GradeEntryPage />} />
+          <Route path="lecturer/schedule" element={<TeachingSchedulePage />} />
         </Route>
 
         {/* Student Routes */}
         <Route element={<ProtectedRoute allowedRoles={['STUDENT']} />}>
           <Route path="student/schedule" element={<SchedulePage />} />
+          <Route path="student/grades" element={<GradesPage />} />
         </Route>
       </Route>
 

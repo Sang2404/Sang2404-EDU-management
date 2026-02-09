@@ -92,12 +92,12 @@ Giai đoạn 6: Web App - Chức năng Giảng viên
 
 41.[x] Web: Gửi bảng điểm để duyệt.
 
-42.[ ] Web: Xem lịch giảng dạy cá nhân.
+42.[x] Web: Xem lịch giảng dạy cá nhân.
 
 Giai đoạn 7: Web App - Chức năng Sinh viên
-43.[ ] Web: Xem thời khóa biểu cá nhân.
+43.[x] Web: Xem thời khóa biểu cá nhân.
 
-44.[ ] Web: Xem bảng điểm cá nhân.
+44.[x] Web: Xem bảng điểm cá nhân.
 
 45.[ ] Web: Xem danh sách lớp đã đăng ký.
 
