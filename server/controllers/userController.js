@@ -86,3 +86,105 @@ exports.createUser = async (req, res) => {
     client.release();
   }
 };
+
+// Update User
+exports.updateUser = async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const { email, username, role, full_name, is_active } = req.body;
+
+    // Build dynamic update query
+    const updates = [];
+    const values = [];
+    let paramCount = 1;
+
+    if (email !== undefined) {
+      updates.push(`email = $${paramCount++}`);
+      values.push(email);
+    }
+    if (username !== undefined) {
+      updates.push(`username = $${paramCount++}`);
+      values.push(username);
+    }
+    if (role !== undefined) {
+      updates.push(`role = $${paramCount++}`);
+      values.push(role);
+    }
+    if (full_name !== undefined) {
+      updates.push(`full_name = $${paramCount++}`);
+      values.push(full_name);
+    }
+    if (is_active !== undefined) {
+      updates.push(`is_active = $${paramCount++}`);
+      values.push(is_active);
+    }
+
+    if (updates.length === 0) {
+      return res.status(400).json({ error: 'No fields to update' });
+    }
+
+    values.push(userId);
+    const query = `
+      UPDATE users 
+      SET ${updates.join(', ')} 
+      WHERE user_id = $${paramCount}
+      RETURNING *
+    `;
+
+    const result = await pool.query(query, values);
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    res.json({ 
+      message: 'User updated successfully', 
+      user: result.rows[0] 
+    });
+  } catch (error) {
+    console.error('Update User Error:', error);
+    res.status(500).json({ error: error.message });
+  }
+};
+
+// Delete User
+exports.deleteUser = async (req, res) => {
+  const client = await pool.connect();
+  
+  try {
+    await client.query('BEGIN');
+
+    const { userId } = req.params;
+
+    // Check if user exists
+    const checkQuery = 'SELECT * FROM users WHERE user_id = $1';
+    const checkResult = await client.query(checkQuery, [userId]);
+
+    if (checkResult.rows.length === 0) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    const user = checkResult.rows[0];
+
+    // Delete from role-specific tables first (CASCADE will handle this, but explicit is better)
+    if (user.role === 'STUDENT') {
+      await client.query('DELETE FROM students WHERE user_id = $1', [userId]);
+    } else if (user.role === 'LECTURER') {
+      await client.query('DELETE FROM lecturers WHERE user_id = $1', [userId]);
+    }
+
+    // Delete from users table
+    await client.query('DELETE FROM users WHERE user_id = $1', [userId]);
+
+    await client.query('COMMIT');
+    res.json({ message: 'User deleted successfully' });
+
+  } catch (error) {
+    await client.query('ROLLBACK');
+    console.error('Delete User Error:', error);
+    res.status(500).json({ error: error.message });
+  } finally {
+    client.release();
+  }
+};

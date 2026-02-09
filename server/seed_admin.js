@@ -11,8 +11,8 @@ const pool = new Pool({
 
 const run = async () => {
     try {
-        await pool.query("INSERT INTO users (email, username, role, full_name) VALUES ('skillsanh@gmail.com', 'ADMIN_SKILLS', 'ADMIN', 'Skills Anh') ON CONFLICT (email) DO UPDATE SET role = 'ADMIN'");
-        console.log('✅ User skillsanh@gmail.com added/updated as ADMIN successfully');
+        await pool.query("INSERT INTO users (email, username, role, full_name) VALUES ('skillsaanh@gmail.com', 'ADMIN01', 'ADMIN', 'Quản trị viên') ON CONFLICT (email) DO UPDATE SET role = 'ADMIN'");
+        console.log('✅ User skillsaanh@gmail.com added/updated as ADMIN successfully');
     } catch (e) {
         console.error('Error:', e);
     } finally {

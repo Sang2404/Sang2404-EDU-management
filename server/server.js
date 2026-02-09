@@ -7,6 +7,12 @@ const pool = require('./config/db'); // Import pool
 const authRoutes = require('./routes/auth');
 const userRoutes = require('./routes/users');
 const academicRoutes = require('./routes/academic');
+const schedulesRoutes = require('./routes/schedules');
+const lecturersRoutes = require('./routes/lecturers');
+const gradesRoutes = require('./routes/grades');
+const adminRoutes = require('./routes/admin');
+const requestsRoutes = require('./routes/requests');
+const statisticsRoutes = require('./routes/statistics');
 
 const app = express();
 const port = process.env.PORT || 5000;
@@ -23,6 +29,12 @@ app.use(express.json());
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/academic', academicRoutes);
+app.use('/api/schedules', schedulesRoutes);
+app.use('/api/lecturers', lecturersRoutes);
+app.use('/api/grades', gradesRoutes);
+app.use('/api/admin', adminRoutes);
+app.use('/api/academic-requests', requestsRoutes);
+app.use('/api/admin/statistics', statisticsRoutes);
 
 // Route cơ bản
 app.get('/', (req, res) => {

@@ -1,5 +1,9 @@
 
 DANH SÁCH CÔNG VIỆC TOÀN DỰ ÁN
+===============================================
+LƯU Ý: Web App và Mobile App đều hỗ trợ đầy đủ chức năng cho tất cả user (Admin, Giảng viên, Sinh viên)
+===============================================
+
 Giai đoạn 1: Khởi tạo & Database (Đã xong)
 1.[x] Cài đặt môi trường (Node.js, PostgreSQL, VS Code, Flutter).
 
@@ -9,7 +13,7 @@ Giai đoạn 1: Khởi tạo & Database (Đã xong)
 
 4.[x] Chạy Script SQL tạo bảng và dữ liệu mẫu.
 
-Giai đoạn 2: Backend Core (Chúng ta đang ở đây)
+Giai đoạn 2: Backend Core (Đã xong)
 5.[x] Cài đặt thư viện cho Server (express, pg, cors, dotenv).
 
 6.[x] Viết file server.js kết nối Database & chạy thử server.
@@ -24,69 +28,167 @@ Giai đoạn 2: Backend Core (Chúng ta đang ở đây)
 
 11.[x] Viết API Tạo User mới (POST /api/users).
 
-Giai đoạn 3: Web Admin (ReactJS)
-12.[x] Khởi tạo React App & cài thư viện (axios, firebase, antd).
+Giai đoạn 3: Backend - Quản lý Học vụ (Đã xong)
+12.[x] Backend: API Quản lý Khoa & Ngành.
 
-13.[x] Làm màn hình Login & tích hợp Google Sign-in.
+13.[x] Backend: API Quản lý Môn học (subjects).
 
-14.[x] Làm Layout Dashboard (Menu bên trái).
+14.[x] Backend: API Tạo Lớp học phần (course_sections).
 
-15.[x] Xử lý phân quyền (Ẩn menu nếu không phải Admin).
+15.[x] Backend: API Quản lý Lớp học phần (GET/PUT/DELETE).
 
-16.[x] Backend: API Quản lý Khoa & Ngành.
+16.[x] Backend: API Xếp lịch học (schedules).
 
-17.[x] Frontend: Giao diện Danh sách Khoa & Ngành (Thêm/Sửa/Xóa).
+17.[x] Backend: API Thêm/Xóa sinh viên vào lớp.
 
-18.[x] Backend: API Quản lý Môn học (subjects).
+18.[x] Backend: API Lấy danh sách lớp của Giảng viên.
 
-19.[x] Frontend: Giao diện Danh sách Môn học.
+19.[x] Backend: API Quản lý điểm (Nhập/Sửa/Gửi duyệt).
 
-Giai đoạn 4: Lớp học phần & Xếp lịch
-20.[ ] Backend: API Tạo Lớp học phần (course_sections).
+20.[x] Backend: API Duyệt bảng điểm (Admin).
 
-21.[ ] Frontend: Form mở lớp (Chọn Giảng viên, Môn học, Học kỳ).
+21.[x] Backend: API Lấy lịch học cá nhân (theo user).
 
-22.[ ] Backend: API Xếp lịch học (schedules).
+22.[x] Backend: API Lấy bảng điểm cá nhân (theo user).
 
-23.[ ] Frontend: Giao diện hiển thị thời khóa biểu của lớp.
+23.[x] Backend: API Quản lý yêu cầu học vụ (Phúc khảo/Bảo lưu).
 
-24.[ ] Backend: API Thêm sinh viên vào lớp.
+24.[x] Backend: API Thống kê (Biểu đồ, báo cáo).
 
-25.[ ] Frontend: Chức năng gán sinh viên vào lớp học phần.
+Giai đoạn 4: Web App - Giao diện chung (ReactJS)
+25.[x] Web: Khởi tạo React App & cài thư viện (axios, firebase, antd).
 
-Giai đoạn 5: Web Giảng viên (Quản lý điểm)
-26.[ ] Backend: API Lấy danh sách lớp của Giảng viên.
+26.[x] Web: Màn hình Login & tích hợp Google Sign-in.
 
-27.[ ] Frontend: Màn hình "Lớp của tôi" (Dành cho GV).
+27.[x] Web: Layout Dashboard với Menu phân quyền.
 
-28.[ ] Frontend: Bảng nhập điểm (Chuyên cần, Giữa kỳ, Cuối kỳ).
+28.[x] Web: Trang chủ Dashboard (Hiển thị thông tin tổng quan).
 
-29.[ ] Backend: API Lưu điểm & Gửi duyệt.
+Giai đoạn 5: Web App - Chức năng Admin
+29.[x] Web: Quản lý User (Danh sách, Thêm, Sửa, Xóa, Khóa tài khoản).
 
-30.[ ] Admin: Màn hình Duyệt bảng điểm.
+30.[x] Web: Quản lý Khoa & Ngành (Danh sách, Thêm, Sửa, Xóa).
 
-31.[ ] Backend: Logic đổi trạng thái điểm sang APPROVED.
+31.[x] Web: Quản lý Môn học (Danh sách, Thêm, Sửa, Xóa).
 
-Giai đoạn 6: Mobile App (Sinh viên)
-32.[ ] Setup Flutter & Màn hình Login.
+32.[x] Web: Quản lý Lớp học phần (Danh sách, Mở lớp, Sửa, Xóa).
 
-33.[ ] Backend: API Lấy lịch học cá nhân.
+33.[x] Web: Xếp lịch học cho lớp học phần.
 
-34.[ ] Mobile: Hiển thị Thời khóa biểu (Tuần/Ngày).
+34.[x] Web: Gán sinh viên vào lớp học phần.
 
-35.[ ] Backend: API Lấy bảng điểm cá nhân.
+35.[x] Web: Duyệt bảng điểm (Xem, Phê duyệt, Từ chối).
 
-36.[ ] Mobile: Hiển thị Kết quả học tập.
+36.[x] Web: Xử lý yêu cầu học vụ (Xem, Phê duyệt, Từ chối).
 
-37.[ ] Mobile: Form Gửi yêu cầu (Phúc khảo/Bảo lưu).
+37.[x] Web: Thống kê & Báo cáo (Biểu đồ, Export).
 
-38.[ ] Backend: API Xử lý yêu cầu học vụ.
+Giai đoạn 6: Web App - Chức năng Giảng viên
+38.[x] Web: Xem danh sách lớp đang giảng dạy.
 
-Giai đoạn 7: Hoàn thiện
-39.[ ] Tích hợp Thông báo (Firebase Cloud Messaging).
+39.[ ] Web: Xem danh sách sinh viên trong lớp.
 
-40.[ ] Làm màn hình Thống kê (Biểu đồ) trên Web.
+40.[ ] Web: Nhập điểm (Chuyên cần, Giữa kỳ, Cuối kỳ).
 
-41.[ ] Kiểm thử toàn bộ (Test luồng).
+41.[ ] Web: Gửi bảng điểm để duyệt.
 
-42.[ ] Sửa lỗi & Đóng gói dự án.
+42.[ ] Web: Xem lịch giảng dạy cá nhân.
+
+Giai đoạn 7: Web App - Chức năng Sinh viên
+43.[ ] Web: Xem thời khóa biểu cá nhân.
+
+44.[ ] Web: Xem bảng điểm cá nhân.
+
+45.[ ] Web: Xem danh sách lớp đã đăng ký.
+
+46.[ ] Web: Gửi yêu cầu học vụ (Phúc khảo, Bảo lưu).
+
+47.[ ] Web: Xem lịch sử yêu cầu học vụ.
+
+Giai đoạn 8: Mobile App - Setup & Authentication (Flutter)
+48.[ ] Mobile: Setup Flutter project & cài đặt dependencies.
+
+49.[ ] Mobile: Màn hình Splash Screen.
+
+50.[ ] Mobile: Màn hình Login & tích hợp Google Sign-in.
+
+51.[ ] Mobile: Bottom Navigation & Drawer Menu phân quyền.
+
+52.[ ] Mobile: Trang chủ Dashboard (Hiển thị thông tin tổng quan).
+
+Giai đoạn 9: Mobile App - Chức năng Admin
+53.[ ] Mobile: Quản lý User (Danh sách, Thêm, Sửa, Xóa).
+
+54.[ ] Mobile: Quản lý Khoa & Ngành (Danh sách, Thêm, Sửa, Xóa).
+
+55.[ ] Mobile: Quản lý Môn học (Danh sách, Thêm, Sửa, Xóa).
+
+56.[ ] Mobile: Quản lý Lớp học phần (Danh sách, Mở lớp, Sửa, Xóa).
+
+57.[ ] Mobile: Xếp lịch học cho lớp học phần.
+
+58.[ ] Mobile: Gán sinh viên vào lớp học phần.
+
+59.[ ] Mobile: Duyệt bảng điểm.
+
+60.[ ] Mobile: Xử lý yêu cầu học vụ.
+
+61.[ ] Mobile: Thống kê & Báo cáo.
+
+Giai đoạn 10: Mobile App - Chức năng Giảng viên
+62.[ ] Mobile: Xem danh sách lớp đang giảng dạy.
+
+63.[ ] Mobile: Xem danh sách sinh viên trong lớp.
+
+64.[ ] Mobile: Nhập điểm (Chuyên cần, Giữa kỳ, Cuối kỳ).
+
+65.[ ] Mobile: Gửi bảng điểm để duyệt.
+
+66.[ ] Mobile: Xem lịch giảng dạy cá nhân.
+
+Giai đoạn 11: Mobile App - Chức năng Sinh viên
+67.[ ] Mobile: Xem thời khóa biểu cá nhân (Tuần/Ngày).
+
+68.[ ] Mobile: Xem bảng điểm cá nhân.
+
+69.[ ] Mobile: Xem danh sách lớp đã đăng ký.
+
+70.[ ] Mobile: Gửi yêu cầu học vụ (Phúc khảo, Bảo lưu).
+
+71.[ ] Mobile: Xem lịch sử yêu cầu học vụ.
+
+Giai đoạn 12: Tính năng chung (Web & Mobile)
+72.[ ] Tích hợp Thông báo (Firebase Cloud Messaging).
+
+73.[ ] Web & Mobile: Xem danh sách thông báo.
+
+74.[ ] Web & Mobile: Đánh dấu đã đọc thông báo.
+
+75.[ ] Web & Mobile: Cập nhật thông tin cá nhân.
+
+76.[ ] Web & Mobile: Đổi avatar.
+
+77.[ ] Web & Mobile: Xem profile cá nhân.
+
+Giai đoạn 13: Testing & Deployment
+78.[ ] Viết Unit Tests cho Backend APIs.
+
+79.[ ] Viết Integration Tests cho các luồng chính.
+
+80.[ ] Test phân quyền (Admin, Giảng viên, Sinh viên).
+
+81.[ ] Test trên nhiều thiết bị (Web: Desktop/Mobile, App: Android/iOS).
+
+82.[ ] Sửa lỗi & Tối ưu hiệu năng.
+
+83.[ ] Chuẩn bị tài liệu hướng dẫn sử dụng.
+
+84.[ ] Deploy Backend lên Server.
+
+85.[ ] Deploy Web App lên Hosting.
+
+86.[ ] Build & Release Mobile App (APK/IPA).
+
+87.[ ] Kiểm thử toàn bộ hệ thống (UAT).
+
+88.[ ] Đóng gói và bàn giao dự án.

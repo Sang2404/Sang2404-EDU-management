@@ -1,11 +1,15 @@
 import React, { useEffect, useState } from 'react';
-import { Table, Tag, Select, Card, Button } from 'antd';
+import { Table, Tag, Select, Card, Button, Modal, Form, Input, message, Space, Popconfirm, Switch } from 'antd';
+import { PlusOutlined, EditOutlined, DeleteOutlined, LockOutlined, UnlockOutlined } from '@ant-design/icons';
 import api from '../../config/axios';
 
 const UsersPage = () => {
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(false);
   const [roleFilter, setRoleFilter] = useState('');
+  const [isModalVisible, setIsModalVisible] = useState(false);
+  const [editingUser, setEditingUser] = useState(null);
+  const [form] = Form.useForm();
   const [pagination, setPagination] = useState({
     current: 1,
     pageSize: 10,
@@ -27,6 +31,7 @@ const UsersPage = () => {
       setPagination(prev => ({ ...prev, current: page, total: totalUsers }));
     } catch (error) {
       console.error('Failed to fetch users:', error);
+      message.error('Không thể tải danh sách người dùng');
     } finally {
       setLoading(false);
     }
@@ -40,7 +45,80 @@ const UsersPage = () => {
     fetchUsers(newPagination.current, roleFilter);
   };
 
+  // Open modal for adding new user
+  const handleAdd = () => {
+    setEditingUser(null);
+    form.resetFields();
+    setIsModalVisible(true);
+  };
+
+  // Open modal for editing user
+  const handleEdit = (user) => {
+    setEditingUser(user);
+    form.setFieldsValue({
+      email: user.email,
+      username: user.username,
+      full_name: user.full_name,
+      role: user.role,
+      is_active: user.is_active
+    });
+    setIsModalVisible(true);
+  };
+
+  // Handle form submission (Add or Edit)
+  const handleSubmit = async (values) => {
+    try {
+      if (editingUser) {
+        // Update existing user
+        await api.put(`/users/${editingUser.user_id}`, values);
+        message.success('Cập nhật người dùng thành công');
+      } else {
+        // Create new user
+        await api.post('/users', values);
+        message.success('Thêm người dùng thành công');
+      }
+      setIsModalVisible(false);
+      form.resetFields();
+      fetchUsers(pagination.current, roleFilter);
+    } catch (error) {
+      console.error('Failed to save user:', error);
+      message.error(error.response?.data?.error || 'Không thể lưu người dùng');
+    }
+  };
+
+  // Delete user
+  const handleDelete = async (userId) => {
+    try {
+      await api.delete(`/users/${userId}`);
+      message.success('Xóa người dùng thành công');
+      fetchUsers(pagination.current, roleFilter);
+    } catch (error) {
+      console.error('Failed to delete user:', error);
+      message.error(error.response?.data?.error || 'Không thể xóa người dùng');
+    }
+  };
+
+  // Toggle user active status (Lock/Unlock)
+  const handleToggleActive = async (user) => {
+    try {
+      await api.put(`/users/${user.user_id}`, {
+        is_active: !user.is_active
+      });
+      message.success(user.is_active ? 'Đã khóa tài khoản' : 'Đã mở khóa tài khoản');
+      fetchUsers(pagination.current, roleFilter);
+    } catch (error) {
+      console.error('Failed to toggle user status:', error);
+      message.error('Không thể thay đổi trạng thái tài khoản');
+    }
+  };
+
   const columns = [
+    {
+      title: 'Mã',
+      dataIndex: 'username',
+      key: 'username',
+      width: 120,
+    },
     {
       title: 'Họ và Tên',
       dataIndex: 'full_name',
@@ -84,34 +162,175 @@ const UsersPage = () => {
       key: 'created_at',
       render: (date) => new Date(date).toLocaleString('vi-VN'),
     },
+    {
+      title: 'Thao tác',
+      key: 'action',
+      fixed: 'right',
+      width: 200,
+      render: (_, record) => (
+        <Space size="small">
+          <Button
+            type="link"
+            icon={<EditOutlined />}
+            onClick={() => handleEdit(record)}
+          >
+            Sửa
+          </Button>
+          <Popconfirm
+            title={record.is_active ? "Khóa tài khoản này?" : "Mở khóa tài khoản này?"}
+            onConfirm={() => handleToggleActive(record)}
+            okText="Có"
+            cancelText="Không"
+          >
+            <Button
+              type="link"
+              icon={record.is_active ? <LockOutlined /> : <UnlockOutlined />}
+              danger={record.is_active}
+            >
+              {record.is_active ? 'Khóa' : 'Mở'}
+            </Button>
+          </Popconfirm>
+          <Popconfirm
+            title="Bạn có chắc muốn xóa người dùng này?"
+            onConfirm={() => handleDelete(record.user_id)}
+            okText="Có"
+            cancelText="Không"
+          >
+            <Button
+              type="link"
+              danger
+              icon={<DeleteOutlined />}
+            >
+              Xóa
+            </Button>
+          </Popconfirm>
+        </Space>
+      ),
+    },
   ];
 
   return (
-    <Card 
-      title="Danh sách Người dùng" 
-      extra={
-        <Select 
-          defaultValue="" 
-          style={{ width: 150 }} 
-          onChange={(value) => setRoleFilter(value)}
-          options={[
-            { value: '', label: 'Tất cả vai trò' },
-            { value: 'STUDENT', label: 'Sinh viên' },
-            { value: 'LECTURER', label: 'Giảng viên' },
-            { value: 'ADMIN', label: 'Quản trị viên' },
-          ]}
+    <>
+      <Card 
+        title="Danh sách Người dùng" 
+        extra={
+          <Space>
+            <Select 
+              defaultValue="" 
+              style={{ width: 150 }} 
+              onChange={(value) => setRoleFilter(value)}
+              options={[
+                { value: '', label: 'Tất cả vai trò' },
+                { value: 'STUDENT', label: 'Sinh viên' },
+                { value: 'LECTURER', label: 'Giảng viên' },
+                { value: 'ADMIN', label: 'Quản trị viên' },
+              ]}
+            />
+            <Button 
+              type="primary" 
+              icon={<PlusOutlined />}
+              onClick={handleAdd}
+            >
+              Thêm người dùng
+            </Button>
+          </Space>
+        }
+      >
+        <Table 
+          columns={columns} 
+          dataSource={users} 
+          rowKey="user_id"
+          pagination={pagination}
+          loading={loading}
+          onChange={handleTableChange}
+          scroll={{ x: 1200 }}
         />
-      }
-    >
-      <Table 
-        columns={columns} 
-        dataSource={users} 
-        rowKey="user_id"
-        pagination={pagination}
-        loading={loading}
-        onChange={handleTableChange}
-      />
-    </Card>
+      </Card>
+
+      {/* Add/Edit Modal */}
+      <Modal
+        title={editingUser ? 'Chỉnh sửa người dùng' : 'Thêm người dùng mới'}
+        open={isModalVisible}
+        onCancel={() => {
+          setIsModalVisible(false);
+          form.resetFields();
+        }}
+        footer={null}
+        width={600}
+      >
+        <Form
+          form={form}
+          layout="vertical"
+          onFinish={handleSubmit}
+        >
+          <Form.Item
+            name="email"
+            label="Email"
+            rules={[
+              { required: true, message: 'Vui lòng nhập email' },
+              { type: 'email', message: 'Email không hợp lệ' }
+            ]}
+          >
+            <Input placeholder="example@gmail.com" disabled={!!editingUser} />
+          </Form.Item>
+
+          <Form.Item
+            name="username"
+            label="Mã người dùng (MSSV/Mã GV)"
+            rules={[{ required: true, message: 'Vui lòng nhập mã người dùng' }]}
+          >
+            <Input placeholder="212480201 hoặc GV001" />
+          </Form.Item>
+
+          <Form.Item
+            name="full_name"
+            label="Họ và tên"
+            rules={[{ required: true, message: 'Vui lòng nhập họ và tên' }]}
+          >
+            <Input placeholder="Nguyễn Văn A" />
+          </Form.Item>
+
+          <Form.Item
+            name="role"
+            label="Vai trò"
+            rules={[{ required: true, message: 'Vui lòng chọn vai trò' }]}
+          >
+            <Select
+              placeholder="Chọn vai trò"
+              options={[
+                { value: 'STUDENT', label: 'Sinh viên' },
+                { value: 'LECTURER', label: 'Giảng viên' },
+                { value: 'ADMIN', label: 'Quản trị viên' },
+              ]}
+            />
+          </Form.Item>
+
+          {editingUser && (
+            <Form.Item
+              name="is_active"
+              label="Trạng thái"
+              valuePropName="checked"
+            >
+              <Switch checkedChildren="Hoạt động" unCheckedChildren="Đã khóa" />
+            </Form.Item>
+          )}
+
+          <Form.Item>
+            <Space>
+              <Button type="primary" htmlType="submit">
+                {editingUser ? 'Cập nhật' : 'Thêm mới'}
+              </Button>
+              <Button onClick={() => {
+                setIsModalVisible(false);
+                form.resetFields();
+              }}>
+                Hủy
+              </Button>
+            </Space>
+          </Form.Item>
+        </Form>
+      </Modal>
+    </>
   );
 };
 

@@ -17,4 +17,23 @@ router.post('/subjects', academicController.createSubject);
 router.put('/subjects/:id', academicController.updateSubject);
 router.delete('/subjects/:id', academicController.deleteSubject);
 
+router.get('/course-sections', academicController.getAllCourseSections);
+router.get('/course-sections/:id', academicController.getCourseSectionById);
+router.post('/course-sections', academicController.createCourseSection);
+router.put('/course-sections/:id', academicController.updateCourseSection);
+router.delete('/course-sections/:id', academicController.deleteCourseSection);
+
+router.get('/course-sections/:sectionId/students', academicController.getStudentsInSection);
+router.post('/course-sections/:sectionId/students', academicController.addStudentToSection);
+router.post('/course-sections/:sectionId/students/bulk', academicController.bulkAddStudentsToSection);
+router.delete('/course-sections/:sectionId/students/:studentId', academicController.removeStudentFromSection);
+
+router.get('/students/:studentId/sections', academicController.getSectionsForStudent);
+
+router.get('/course-sections/:sectionId/schedules', academicController.getSchedulesBySection);
+router.post('/schedules', academicController.createSchedule);
+router.get('/schedules/:id', academicController.getScheduleById);
+router.put('/schedules/:id', academicController.updateSchedule);
+router.delete('/schedules/:id', academicController.deleteSchedule);
+
 module.exports = router;

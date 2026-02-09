@@ -2,12 +2,16 @@ import React from 'react';
 import { Layout, Menu, Button, theme, Typography } from 'antd';
 import { 
   UserOutlined, 
-  VideoCameraOutlined, 
-  UploadOutlined,
   LogoutOutlined,
   DashboardOutlined,
   BankOutlined,
-  BookOutlined
+  BookOutlined,
+  ReadOutlined,
+  CalendarOutlined,
+  TeamOutlined,
+  FileTextOutlined,
+  FileSearchOutlined,
+  BarChartOutlined
 } from '@ant-design/icons';
 import { useNavigate, Outlet, useLocation } from 'react-router-dom';
 
@@ -50,6 +54,7 @@ const MainLayout = () => {
   // Định nghĩa menu dựa trên Role
   const getMenuItems = () => {
     const items = [
+      // Admin menu items
       {
         key: '/admin/dashboard',
         icon: <DashboardOutlined />,
@@ -73,6 +78,56 @@ const MainLayout = () => {
         icon: <BookOutlined />,
         label: 'Quản lý Môn học',
         hidden: user.role !== 'ADMIN',
+      },
+      {
+        key: '/admin/course-sections',
+        icon: <ReadOutlined />,
+        label: 'Lớp học phần',
+        hidden: user.role !== 'ADMIN',
+      },
+      {
+        key: '/admin/schedules',
+        icon: <CalendarOutlined />,
+        label: 'Xếp lịch học',
+        hidden: user.role !== 'ADMIN',
+      },
+      {
+        key: '/admin/student-enrollment',
+        icon: <TeamOutlined />,
+        label: 'Gán sinh viên',
+        hidden: user.role !== 'ADMIN',
+      },
+      {
+        key: '/admin/grade-approval',
+        icon: <FileTextOutlined />,
+        label: 'Duyệt bảng điểm',
+        hidden: user.role !== 'ADMIN',
+      },
+      {
+        key: '/admin/academic-requests',
+        icon: <FileSearchOutlined />,
+        label: 'Yêu cầu học vụ',
+        hidden: user.role !== 'ADMIN',
+      },
+      {
+        key: '/admin/statistics',
+        icon: <BarChartOutlined />,
+        label: 'Thống kê & Báo cáo',
+        hidden: user.role !== 'ADMIN',
+      },
+      // Lecturer menu items
+      {
+        key: '/lecturer/my-sections',
+        icon: <BookOutlined />,
+        label: 'Lớp giảng dạy',
+        hidden: user.role !== 'LECTURER',
+      },
+      // Student menu items
+      {
+        key: '/student/schedule',
+        icon: <CalendarOutlined />,
+        label: 'Lịch học',
+        hidden: user.role !== 'STUDENT',
       },
     ];
     return items.filter(item => !item.hidden);

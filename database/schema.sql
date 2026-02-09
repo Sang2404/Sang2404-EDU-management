@@ -96,6 +96,7 @@ CREATE TABLE course_sections (
     academic_year VARCHAR(9) NOT NULL, -- VD: '2024-2025'
     room_default VARCHAR(50), -- Phòng học chính
     max_capacity INT DEFAULT 60,
+    section_code VARCHAR(50) UNIQUE NOT NULL, -- Mã lớp học phần duy nhất
     is_locked BOOLEAN DEFAULT FALSE -- Khóa lớp không cho đăng ký thêm
 );
 
@@ -166,30 +167,29 @@ CREATE TABLE notifications (
 -- PHẦN 5: DỮ LIỆU MẪU ĐỂ TEST GOOGLE LOGIN (SEED DATA)
 -- 1. Tạo Admin
 INSERT INTO users (email, username, role, full_name) 
-VALUES ('admin.demo@gmail.com', 'ADMIN01', 'ADMIN', 'Phòng Đào Tạo');
+VALUES ('skillsaanh@gmail.com', 'ADMIN01', 'ADMIN', 'Quản trị viên');
 
 -- 2. Tạo Giảng viên (Đã có trong Whitelist)
 -- Bước 2.1: Tạo User trước
 INSERT INTO users (email, username, role, full_name) 
-VALUES ('giangvien.demo@gmail.com', 'GV001', 'LECTURER', 'Thầy Nguyễn Văn A');
+VALUES ('sinfour503@gmail.com', 'GV001', 'LECTURER', 'Nguyễn Văn A');
 
 -- Bước 2.2: Tạo dữ liệu Khoa
 INSERT INTO faculties (faculty_id, faculty_name) VALUES ('IET', 'Viện Kỹ thuật - Công nghệ');
 
 -- Bước 2.3: Link User vào bảng Lecturers
 INSERT INTO lecturers (lecturer_id, user_id, faculty_id, degree, phone) 
-VALUES ('GV001', (SELECT user_id FROM users WHERE username='GV001'), 'IET', 'Tiến sĩ', '0987654321');
+VALUES ('GV001', (SELECT user_id FROM users WHERE username='GV001'), 'IET', 'Thạc sĩ', '0987654321');
 
 -- 3. Tạo Sinh viên (Đã có trong Whitelist)
--- Hãy thay 'sinhvien.cuaban@gmail.com' bằng gmail thật của bạn để lát nữa test đăng nhập
 INSERT INTO users (email, username, role, full_name) 
-VALUES ('sinhvien.cuaban@gmail.com', '212480201', 'STUDENT', 'Trần Thị Em');
+VALUES ('2224802010365@student.tdmu.edu.vn', '2224802010365', 'STUDENT', 'Nguyễn Văn B');
 
 -- Bước 3.1: Tạo Ngành & Lớp
 INSERT INTO majors (major_id, faculty_id, major_name) VALUES ('7480201', 'IET', 'Công nghệ thông tin');
 INSERT INTO classes (class_id, major_id, advisor_id, class_name, enrollment_year) 
-VALUES ('D21HT01', '7480201', 'GV001', 'ĐH CNTT K13 - Lớp 01', 2021);
+VALUES ('D22HT01', '7480201', 'GV001', 'ĐH CNTT K14 - Lớp 01', 2022);
 
 -- Bước 3.2: Link User vào bảng Students
 INSERT INTO students (student_id, user_id, class_id, dob, gender, status) 
-VALUES ('212480201', (SELECT user_id FROM users WHERE username='212480201'), 'D21HT01', '2003-01-01', 'Nam', 'STUDYING');
+VALUES ('2224802010365', (SELECT user_id FROM users WHERE username='2224802010365'), 'D22HT01', '2004-01-01', 'Nam', 'STUDYING');
