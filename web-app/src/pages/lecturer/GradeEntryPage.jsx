@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Card, Table, Button, Modal, Form, InputNumber, message, Space, Tag, Select, Descriptions } from 'antd';
-import { EditOutlined, SaveOutlined, CheckCircleOutlined } from '@ant-design/icons';
+import { Card, Table, Button, Modal, Form, InputNumber, message, Space, Tag, Select, Descriptions, Popconfirm } from 'antd';
+import { EditOutlined, SaveOutlined, CheckCircleOutlined, SendOutlined } from '@ant-design/icons';
 import api from '../../config/axios';
 
 const { Option } = Select;
@@ -91,12 +91,14 @@ const GradeEntryPage = () => {
 
   const handleSaveGrade = async (values) => {
     try {
+      const user = JSON.parse(localStorage.getItem('user'));
       await api.post('/grades', {
         section_id: selectedSection.section_id,
         student_id: editingStudent.student_id,
         attendance: values.attendance,
         midterm: values.midterm,
-        final: values.final
+        final: values.final,
+        lecturer_id: user.username
       });
 
       message.success('Lưu điểm thành công');
@@ -105,6 +107,32 @@ const GradeEntryPage = () => {
       fetchStudentsWithGrades(selectedSection.section_id);
     } catch (error) {
       message.error(error.response?.data?.error || 'Không thể lưu điểm');
+    }
+  };
+
+  const handleSubmitGrades = async () => {
+    try {
+      const user = JSON.parse(localStorage.getItem('user'));
+      
+      // Check if all students have grades
+      const ungradedStudents = students.filter(s => 
+        s.attendance === null || s.midterm === null || s.final === null
+      );
+      
+      if (ungradedStudents.length > 0) {
+        message.warning(`Còn ${ungradedStudents.length} sinh viên chưa nhập điểm`);
+        return;
+      }
+      
+      await api.post('/grades/submit', {
+        section_id: selectedSection.section_id,
+        lecturer_id: user.username
+      });
+      
+      message.success('Gửi bảng điểm thành công! Chờ Admin duyệt.');
+      fetchStudentsWithGrades(selectedSection.section_id);
+    } catch (error) {
+      message.error(error.response?.data?.error || 'Không thể gửi bảng điểm');
     }
   };
 
@@ -234,7 +262,7 @@ const GradeEntryPage = () => {
           type="link"
           icon={<EditOutlined />}
           onClick={() => handleEditGrade(record)}
-          disabled={record.status === 'APPROVED'}
+          disabled={record.status === 'APPROVED' || record.status === 'SUBMITTED'}
         >
           {record.attendance !== null ? 'Sửa' : 'Nhập điểm'}
         </Button>
@@ -307,12 +335,30 @@ const GradeEntryPage = () => {
             </Space>
           }
           extra={
-            <Button onClick={() => {
-              setSelectedSection(null);
-              setStudents([]);
-            }}>
-              Quay lại
-            </Button>
+            <Space>
+              <Popconfirm
+                title="Gửi bảng điểm để duyệt?"
+                description="Sau khi gửi, bạn không thể sửa điểm cho đến khi Admin phê duyệt hoặc từ chối."
+                onConfirm={handleSubmitGrades}
+                okText="Gửi"
+                cancelText="Hủy"
+                disabled={students.some(s => s.status === 'SUBMITTED' || s.status === 'APPROVED')}
+              >
+                <Button 
+                  type="primary" 
+                  icon={<SendOutlined />}
+                  disabled={students.some(s => s.status === 'SUBMITTED' || s.status === 'APPROVED')}
+                >
+                  Gửi duyệt
+                </Button>
+              </Popconfirm>
+              <Button onClick={() => {
+                setSelectedSection(null);
+                setStudents([]);
+              }}>
+                Quay lại
+              </Button>
+            </Space>
           }
         >
           <Descriptions bordered size="small" style={{ marginBottom: 16 }}>

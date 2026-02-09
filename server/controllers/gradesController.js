@@ -193,3 +193,102 @@ exports.getStudentGrades = async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 };
+
+
+// Submit grades for approval
+exports.submitGradesForApproval = async (req, res) => {
+  try {
+    const { section_id, lecturer_id } = req.body;
+    
+    if (!section_id || !lecturer_id) {
+      return res.status(400).json({ error: 'section_id and lecturer_id are required' });
+    }
+    
+    // Verify lecturer is assigned to section
+    const sectionCheck = await pool.query(
+      'SELECT lecturer_id FROM course_sections WHERE section_id = $1',
+      [section_id]
+    );
+    
+    if (sectionCheck.rows.length === 0) {
+      return res.status(404).json({ error: 'Course section not found' });
+    }
+    
+    if (sectionCheck.rows[0].lecturer_id !== lecturer_id) {
+      return res.status(403).json({ error: 'You are not assigned to this course section' });
+    }
+    
+    // Check if all students have grades
+    const studentsQuery = `
+      SELECT COUNT(*) as total_students
+      FROM section_students
+      WHERE section_id = $1
+    `;
+    const studentsResult = await pool.query(studentsQuery, [section_id]);
+    const totalStudents = parseInt(studentsResult.rows[0].total_students);
+    
+    const gradesQuery = `
+      SELECT COUNT(*) as graded_students
+      FROM grades
+      WHERE section_id = $1 
+        AND attendance IS NOT NULL 
+        AND midterm IS NOT NULL 
+        AND final IS NOT NULL
+        AND status = 'DRAFT'
+    `;
+    const gradesResult = await pool.query(gradesQuery, [section_id]);
+    const gradedStudents = parseInt(gradesResult.rows[0].graded_students);
+    
+    if (gradedStudents < totalStudents) {
+      return res.status(400).json({ 
+        error: `Chưa nhập đủ điểm. Đã nhập: ${gradedStudents}/${totalStudents} sinh viên` 
+      });
+    }
+    
+    // Update all grades status to SUBMITTED
+    const updateQuery = `
+      UPDATE grades
+      SET status = 'SUBMITTED'
+      WHERE section_id = $1 AND status = 'DRAFT'
+      RETURNING *
+    `;
+    
+    const result = await pool.query(updateQuery, [section_id]);
+    
+    res.json({
+      message: 'Gửi bảng điểm thành công',
+      submitted_count: result.rows.length
+    });
+  } catch (error) {
+    console.error('Error submitting grades:', error);
+    res.status(500).json({ error: error.message });
+  }
+};
+
+// Get grades by section (for lecturer to view)
+exports.getGradesBySection = async (req, res) => {
+  try {
+    const { sectionId } = req.params;
+    
+    const query = `
+      SELECT 
+        g.*,
+        s.student_id,
+        u.full_name,
+        u.email,
+        c.class_name
+      FROM grades g
+      JOIN students s ON g.student_id = s.student_id
+      JOIN users u ON s.user_id = u.user_id
+      LEFT JOIN classes c ON s.class_id = c.class_id
+      WHERE g.section_id = $1
+      ORDER BY s.student_id
+    `;
+    
+    const result = await pool.query(query, [sectionId]);
+    res.json(result.rows);
+  } catch (error) {
+    console.error('Error getting grades by section:', error);
+    res.status(500).json({ error: error.message });
+  }
+};

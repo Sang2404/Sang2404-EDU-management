@@ -90,7 +90,7 @@ Giai đoạn 6: Web App - Chức năng Giảng viên
 
 40.[x] Web: Nhập điểm (Chuyên cần, Giữa kỳ, Cuối kỳ).
 
-41.[ ] Web: Gửi bảng điểm để duyệt.
+41.[x] Web: Gửi bảng điểm để duyệt.
 
 42.[ ] Web: Xem lịch giảng dạy cá nhân.
 

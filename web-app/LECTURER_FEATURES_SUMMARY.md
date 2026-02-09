@@ -44,7 +44,7 @@
   - Điểm cuối kỳ (0-10)
 - Tự động tính điểm tổng kết (hệ 10) và điểm chữ
 - Hiển thị trạng thái: Nháp / Đã nộp / Đã duyệt
-- Không cho phép sửa điểm đã được duyệt
+- Không cho phép sửa điểm đã gửi duyệt hoặc đã duyệt
 - Thống kê: Tổng số SV, Đã nhập điểm, Chưa nhập
 
 **API sử dụng:**
@@ -65,13 +65,30 @@
   - D: 4.0-4.9
   - F: 0-3.9
 
-## 🚧 Đang phát triển
-
 ### 4. Gửi bảng điểm để duyệt (Task 41)
-- Chọn lớp học phần
-- Xem lại toàn bộ điểm đã nhập
-- Nút "Gửi duyệt" để chuyển trạng thái từ DRAFT → SUBMITTED
-- Không cho phép sửa sau khi gửi duyệt
+**File**: `web-app/src/pages/lecturer/GradeEntryPage.jsx`
+
+**Tính năng:**
+- Nút "Gửi duyệt" trong trang nhập điểm
+- Kiểm tra tất cả sinh viên đã có điểm chưa
+- Xác nhận trước khi gửi (Popconfirm)
+- Chuyển trạng thái điểm từ DRAFT → SUBMITTED
+- Không cho phép sửa điểm sau khi gửi
+- Thông báo thành công và chờ Admin duyệt
+- Disable nút nếu đã gửi hoặc đã duyệt
+
+**API sử dụng:**
+- `POST /api/grades/submit` - Gửi bảng điểm để duyệt
+
+**Quy trình:**
+1. Giảng viên nhập điểm cho tất cả sinh viên
+2. Click "Gửi duyệt"
+3. Hệ thống kiểm tra đã nhập đủ điểm chưa
+4. Chuyển trạng thái tất cả điểm → SUBMITTED
+5. Admin vào trang "Duyệt bảng điểm" để phê duyệt
+6. Sau khi duyệt, trạng thái → APPROVED
+
+## 🚧 Đang phát triển
 
 ### 5. Xem lịch giảng dạy cá nhân (Task 42)
 - Hiển thị lịch giảng dạy theo tuần
