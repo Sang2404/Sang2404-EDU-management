@@ -14,6 +14,7 @@ import GradeApprovalPage from './pages/admin/GradeApprovalPage';
 import AcademicRequestsPage from './pages/admin/AcademicRequestsPage';
 import StatisticsPage from './pages/admin/StatisticsPage';
 import MySectionsPage from './pages/lecturer/MySectionsPage';
+import GradeEntryPage from './pages/lecturer/GradeEntryPage';
 import SchedulePage from './pages/student/SchedulePage';
 import { Result } from 'antd';
 
@@ -56,6 +57,7 @@ function App() {
         {/* Lecturer Routes */}
         <Route element={<ProtectedRoute allowedRoles={['LECTURER']} />}>
           <Route path="lecturer/my-sections" element={<MySectionsPage />} />
+          <Route path="lecturer/grade-entry" element={<GradeEntryPage />} />
         </Route>
 
         {/* Student Routes */}

@@ -122,6 +122,12 @@ const MainLayout = () => {
         label: 'Lớp giảng dạy',
         hidden: user.role !== 'LECTURER',
       },
+      {
+        key: '/lecturer/grade-entry',
+        icon: <FileTextOutlined />,
+        label: 'Nhập điểm',
+        hidden: user.role !== 'LECTURER',
+      },
       // Student menu items
       {
         key: '/student/schedule',

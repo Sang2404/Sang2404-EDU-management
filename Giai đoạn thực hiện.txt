@@ -86,9 +86,9 @@ Giai đoạn 5: Web App - Chức năng Admin
 Giai đoạn 6: Web App - Chức năng Giảng viên
 38.[x] Web: Xem danh sách lớp đang giảng dạy.
 
-39.[ ] Web: Xem danh sách sinh viên trong lớp.
+39.[x] Web: Xem danh sách sinh viên trong lớp.
 
-40.[ ] Web: Nhập điểm (Chuyên cần, Giữa kỳ, Cuối kỳ).
+40.[x] Web: Nhập điểm (Chuyên cần, Giữa kỳ, Cuối kỳ).
 
 41.[ ] Web: Gửi bảng điểm để duyệt.
 
