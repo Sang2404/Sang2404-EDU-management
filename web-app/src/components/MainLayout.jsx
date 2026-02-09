@@ -142,9 +142,21 @@ const MainLayout = () => {
         hidden: user.role !== 'STUDENT',
       },
       {
+        key: '/student/courses',
+        icon: <BookOutlined />,
+        label: 'Lớp học phần',
+        hidden: user.role !== 'STUDENT',
+      },
+      {
         key: '/student/grades',
         icon: <FileTextOutlined />,
         label: 'Bảng điểm',
+        hidden: user.role !== 'STUDENT',
+      },
+      {
+        key: '/student/requests',
+        icon: <FileSearchOutlined />,
+        label: 'Yêu cầu học vụ',
         hidden: user.role !== 'STUDENT',
       },
     ];
