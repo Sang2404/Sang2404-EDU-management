@@ -166,7 +166,26 @@ const MainLayout = () => {
   return (
     <Layout style={{ minHeight: '100vh' }}>
       <Sider collapsible collapsed={collapsed} onCollapse={(value) => setCollapsed(value)}>
-        <div style={{ height: 32, margin: 16, background: 'rgba(255, 255, 255, 0.2)' }} />
+        <div style={{ 
+          height: 120, 
+          padding: '20px 8px',
+          display: 'flex', 
+          alignItems: 'center', 
+          justifyContent: 'center',
+          overflow: 'hidden'
+        }}>
+          <img 
+            src={collapsed ? '/logo-icon.png' : '/logo-full.png'} 
+            alt="EDU Management" 
+            style={{ 
+              height: collapsed ? '45px' : 'auto',
+              width: collapsed ? 'auto' : '100%',
+              maxHeight: '120px',
+              objectFit: 'contain',
+              transition: 'all 0.2s'
+            }} 
+          />
+        </div>
         <Menu 
           theme="dark" 
           mode="inline" 

@@ -302,14 +302,15 @@ const GradesPage = () => {
       {/* Legend */}
       <Card title="Thang điểm" size="small" style={{ marginTop: 16 }}>
         <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
-          <div><Tag color="green">A</Tag> 8.5 - 10 (Xuất sắc)</div>
-          <div><Tag color="blue">B+</Tag> 8.0 - 8.4 (Giỏi)</div>
-          <div><Tag color="blue">B</Tag> 7.0 - 7.9 (Khá)</div>
-          <div><Tag color="orange">C+</Tag> 6.5 - 6.9 (Trung bình khá)</div>
-          <div><Tag color="orange">C</Tag> 5.5 - 6.4 (Trung bình)</div>
-          <div><Tag color="red">D+</Tag> 5.0 - 5.4 (Trung bình yếu)</div>
-          <div><Tag color="red">D</Tag> 4.0 - 4.9 (Yếu)</div>
-          <div><Tag color="red">F</Tag> 0 - 3.9 (Kém)</div>
+          <div><Tag color="green">A+</Tag> 9.0 - 10 (Xuất sắc)</div>
+          <div><Tag color="green">A</Tag> 8.0 - 8.9 (Giỏi)</div>
+          <div><Tag color="blue">B+</Tag> 7.5 - 7.9 (Khá giỏi)</div>
+          <div><Tag color="blue">B</Tag> 7.0 - 7.4 (Khá)</div>
+          <div><Tag color="orange">C+</Tag> 6.0 - 6.9 (Trung bình khá)</div>
+          <div><Tag color="orange">C</Tag> 5.0 - 5.9 (Trung bình)</div>
+          <div><Tag color="red">D+</Tag> 4.5 - 4.9 (Trung bình yếu)</div>
+          <div><Tag color="red">D</Tag> 4.0 - 4.4 (Yếu)</div>
+          <div><Tag color="red">F</Tag> Dưới 4.0 (Kém)</div>
         </div>
       </Card>
     </div>

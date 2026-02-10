@@ -44,7 +44,7 @@ const MySectionsPage = () => {
   useEffect(() => {
     if (lecturerId) {
       fetchSections();
-      fetchStatistics();
+      // fetchStatistics(); // API not implemented yet
     }
   }, [lecturerId, semester, academicYear]);
 
@@ -66,20 +66,20 @@ const MySectionsPage = () => {
     }
   };
 
-  const fetchStatistics = async () => {
-    try {
-      let url = `/lecturers/${lecturerId}/statistics`;
-      const params = [];
-      if (semester) params.push(`semester=${semester}`);
-      if (academicYear) params.push(`academic_year=${academicYear}`);
-      if (params.length > 0) url += '?' + params.join('&');
+  // const fetchStatistics = async () => {
+  //   try {
+  //     let url = `/lecturers/${lecturerId}/statistics`;
+  //     const params = [];
+  //     if (semester) params.push(`semester=${semester}`);
+  //     if (academicYear) params.push(`academic_year=${academicYear}`);
+  //     if (params.length > 0) url += '?' + params.join('&');
       
-      const response = await axios.get(url);
-      setStatistics(response.data);
-    } catch (error) {
-      console.error('Error fetching statistics:', error);
-    }
-  };
+  //     const response = await axios.get(url);
+  //     setStatistics(response.data);
+  //   } catch (error) {
+  //     console.error('Error fetching statistics:', error);
+  //   }
+  // };
 
   const handleViewDetails = async (section) => {
     try {
