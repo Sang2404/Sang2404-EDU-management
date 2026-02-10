@@ -26,7 +26,7 @@ const AcademicRequestsPage = () => {
   const fetchRequests = async () => {
     setLoading(true);
     try {
-      const response = await axios.get(`/api/requests/students/${studentId}`);
+      const response = await axios.get(`/academic-requests/students/${studentId}`);
       setRequests(response.data);
     } catch (error) {
       message.error('Không thể tải danh sách yêu cầu');
@@ -38,12 +38,12 @@ const AcademicRequestsPage = () => {
 
   const fetchGrades = async () => {
     try {
-      const response = await axios.get(`/api/academic/students/${studentId}/sections`);
+      const response = await axios.get(`/academic/students/${studentId}/sections`);
       const sections = response.data;
       
       // Get grades for all sections
       const gradesPromises = sections.map(section =>
-        axios.get(`/api/grades/section/${section.section_id}`)
+        axios.get(`/grades/section/${section.section_id}`)
           .then(res => res.data.filter(g => g.student_id === studentId))
           .catch(() => [])
       );
@@ -58,7 +58,7 @@ const AcademicRequestsPage = () => {
 
   const handleSubmit = async (values) => {
     try {
-      await axios.post('/api/requests', {
+      await axios.post('/academic-requests', {
         student_id: studentId,
         request_type: values.request_type,
         reason: values.reason,

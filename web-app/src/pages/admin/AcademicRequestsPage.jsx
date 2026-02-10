@@ -321,81 +321,91 @@ const AcademicRequestsPage = () => {
         width={700}
       >
         {selectedRequest && (
-          <Tabs defaultActiveKey="info">
-            <Tabs.TabPane tab="Thông tin chung" key="info">
-              <Descriptions bordered column={1} size="small">
-                <Descriptions.Item label="Mã yêu cầu">
-                  {selectedRequest.request_id}
-                </Descriptions.Item>
-                <Descriptions.Item label="Mã sinh viên">
-                  {selectedRequest.student_id}
-                </Descriptions.Item>
-                <Descriptions.Item label="Họ và tên">
-                  {selectedRequest.student_name}
-                </Descriptions.Item>
-                <Descriptions.Item label="Email">
-                  {selectedRequest.student_email}
-                </Descriptions.Item>
-                <Descriptions.Item label="Loại yêu cầu">
-                  <Tag color={getRequestTypeColor(selectedRequest.request_type)}>
-                    {selectedRequest.request_type_display}
-                  </Tag>
-                </Descriptions.Item>
-                <Descriptions.Item label="Trạng thái">
-                  <Tag color={getStatusColor(selectedRequest.status)}>
-                    {selectedRequest.status_display}
-                  </Tag>
-                </Descriptions.Item>
-                {selectedRequest.section_code && (
-                  <>
-                    <Descriptions.Item label="Mã lớp">
-                      {selectedRequest.section_code}
+          <Tabs 
+            defaultActiveKey="info"
+            items={[
+              {
+                key: 'info',
+                label: 'Thông tin chung',
+                children: (
+                  <Descriptions bordered column={1} size="small">
+                    <Descriptions.Item label="Mã yêu cầu">
+                      {selectedRequest.request_id}
                     </Descriptions.Item>
-                    <Descriptions.Item label="Môn học">
-                      {selectedRequest.subject_name}
+                    <Descriptions.Item label="Mã sinh viên">
+                      {selectedRequest.student_id}
                     </Descriptions.Item>
-                  </>
-                )}
-                <Descriptions.Item label="Ngày gửi">
-                  {new Date(selectedRequest.created_at).toLocaleString('vi-VN')}
-                </Descriptions.Item>
-                {selectedRequest.updated_at && (
-                  <Descriptions.Item label="Ngày cập nhật">
-                    {new Date(selectedRequest.updated_at).toLocaleString('vi-VN')}
-                  </Descriptions.Item>
-                )}
-              </Descriptions>
-            </Tabs.TabPane>
-            
-            <Tabs.TabPane tab="Nội dung yêu cầu" key="content">
-              <div style={{ padding: '16px 0' }}>
-                <h4>Lý do:</h4>
-                <div style={{ 
-                  padding: 12, 
-                  background: '#f5f5f5', 
-                  borderRadius: 4,
-                  whiteSpace: 'pre-wrap'
-                }}>
-                  {selectedRequest.reason}
-                </div>
-                
-                {selectedRequest.admin_response && (
-                  <>
-                    <h4 style={{ marginTop: 24 }}>Phản hồi của Admin:</h4>
+                    <Descriptions.Item label="Họ và tên">
+                      {selectedRequest.student_name}
+                    </Descriptions.Item>
+                    <Descriptions.Item label="Email">
+                      {selectedRequest.student_email}
+                    </Descriptions.Item>
+                    <Descriptions.Item label="Loại yêu cầu">
+                      <Tag color={getRequestTypeColor(selectedRequest.request_type)}>
+                        {selectedRequest.request_type_display}
+                      </Tag>
+                    </Descriptions.Item>
+                    <Descriptions.Item label="Trạng thái">
+                      <Tag color={getStatusColor(selectedRequest.status)}>
+                        {selectedRequest.status_display}
+                      </Tag>
+                    </Descriptions.Item>
+                    {selectedRequest.section_code && (
+                      <>
+                        <Descriptions.Item label="Mã lớp">
+                          {selectedRequest.section_code}
+                        </Descriptions.Item>
+                        <Descriptions.Item label="Môn học">
+                          {selectedRequest.subject_name}
+                        </Descriptions.Item>
+                      </>
+                    )}
+                    <Descriptions.Item label="Ngày gửi">
+                      {new Date(selectedRequest.created_at).toLocaleString('vi-VN')}
+                    </Descriptions.Item>
+                    {selectedRequest.updated_at && (
+                      <Descriptions.Item label="Ngày cập nhật">
+                        {new Date(selectedRequest.updated_at).toLocaleString('vi-VN')}
+                      </Descriptions.Item>
+                    )}
+                  </Descriptions>
+                )
+              },
+              {
+                key: 'content',
+                label: 'Nội dung yêu cầu',
+                children: (
+                  <div style={{ padding: '16px 0' }}>
+                    <h4>Lý do:</h4>
                     <div style={{ 
                       padding: 12, 
-                      background: selectedRequest.status === 'APPROVED' ? '#f6ffed' : '#fff2e8',
-                      border: `1px solid ${selectedRequest.status === 'APPROVED' ? '#b7eb8f' : '#ffbb96'}`,
+                      background: '#f5f5f5', 
                       borderRadius: 4,
                       whiteSpace: 'pre-wrap'
                     }}>
-                      {selectedRequest.admin_response}
+                      {selectedRequest.reason}
                     </div>
-                  </>
-                )}
-              </div>
-            </Tabs.TabPane>
-          </Tabs>
+                    
+                    {selectedRequest.admin_response && (
+                      <>
+                        <h4 style={{ marginTop: 24 }}>Phản hồi của Admin:</h4>
+                        <div style={{ 
+                          padding: 12, 
+                          background: selectedRequest.status === 'APPROVED' ? '#f6ffed' : '#fff2e8',
+                          border: `1px solid ${selectedRequest.status === 'APPROVED' ? '#b7eb8f' : '#ffbb96'}`,
+                          borderRadius: 4,
+                          whiteSpace: 'pre-wrap'
+                        }}>
+                          {selectedRequest.admin_response}
+                        </div>
+                      </>
+                    )}
+                  </div>
+                )
+              }
+            ]}
+          />
         )}
       </Modal>
 

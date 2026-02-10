@@ -10,30 +10,33 @@ const calculateGrades = (attendance, midterm, final) => {
   // Determine total_4 and grade_char based on scale
   let total_4, grade_char;
   
-  if (total_10 >= 8.5) {
+  if (total_10 >= 9.0) {
     total_4 = 4.0;
-    grade_char = 'A';
+    grade_char = 'A+';  // 9.0-10: Xuất sắc
   } else if (total_10 >= 8.0) {
+    total_4 = 4.0;
+    grade_char = 'A';   // 8.0-8.9: Giỏi
+  } else if (total_10 >= 7.5) {
     total_4 = 3.5;
-    grade_char = 'B+';
+    grade_char = 'B+';  // 7.5-7.9: Khá giỏi
   } else if (total_10 >= 7.0) {
     total_4 = 3.0;
-    grade_char = 'B';
-  } else if (total_10 >= 6.5) {
+    grade_char = 'B';   // 7.0-7.4: Khá
+  } else if (total_10 >= 6.0) {
     total_4 = 2.5;
-    grade_char = 'C+';
-  } else if (total_10 >= 5.5) {
-    total_4 = 2.0;
-    grade_char = 'C';
+    grade_char = 'C+';  // 6.0-6.9: Trung bình khá
   } else if (total_10 >= 5.0) {
+    total_4 = 2.0;
+    grade_char = 'C';   // 5.0-5.9: Trung bình
+  } else if (total_10 >= 4.5) {
     total_4 = 1.5;
-    grade_char = 'D+';
+    grade_char = 'D+';  // 4.5-4.9: Trung bình yếu
   } else if (total_10 >= 4.0) {
     total_4 = 1.0;
-    grade_char = 'D';
+    grade_char = 'D';   // 4.0-4.4: Yếu
   } else {
     total_4 = 0.0;
-    grade_char = 'F';
+    grade_char = 'F';   // Dưới 4.0: Kém (Học lại)
   }
   
   return { total_10, total_4, grade_char };
