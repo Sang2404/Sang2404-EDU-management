@@ -24,7 +24,6 @@ import axios from '../../config/axios';
 
 const { TextArea } = Input;
 const { Option } = Select;
-const { TabPane } = Tabs;
 
 const AcademicRequestsPage = () => {
   const [requests, setRequests] = useState([]);
@@ -250,7 +249,7 @@ const AcademicRequestsPage = () => {
             value={filterStatus}
             onChange={setFilterStatus}
           >
-            <Option value={null}>Tất cả</Option>
+            <Option value="">Tất cả</Option>
             <Option value="PENDING">Chờ xử lý</Option>
             <Option value="APPROVED">Đã duyệt</Option>
             <Option value="REJECTED">Đã từ chối</Option>
@@ -323,7 +322,7 @@ const AcademicRequestsPage = () => {
       >
         {selectedRequest && (
           <Tabs defaultActiveKey="info">
-            <TabPane tab="Thông tin chung" key="info">
+            <Tabs.TabPane tab="Thông tin chung" key="info">
               <Descriptions bordered column={1} size="small">
                 <Descriptions.Item label="Mã yêu cầu">
                   {selectedRequest.request_id}
@@ -366,9 +365,9 @@ const AcademicRequestsPage = () => {
                   </Descriptions.Item>
                 )}
               </Descriptions>
-            </TabPane>
+            </Tabs.TabPane>
             
-            <TabPane tab="Nội dung yêu cầu" key="content">
+            <Tabs.TabPane tab="Nội dung yêu cầu" key="content">
               <div style={{ padding: '16px 0' }}>
                 <h4>Lý do:</h4>
                 <div style={{ 
@@ -395,7 +394,7 @@ const AcademicRequestsPage = () => {
                   </>
                 )}
               </div>
-            </TabPane>
+            </Tabs.TabPane>
           </Tabs>
         )}
       </Modal>
@@ -548,3 +547,4 @@ const AcademicRequestsPage = () => {
 };
 
 export default AcademicRequestsPage;
+

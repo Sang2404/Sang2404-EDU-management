@@ -22,7 +22,6 @@ import {
 import axios from '../../config/axios';
 
 const { Option } = Select;
-const { TabPane } = Tabs;
 
 const StatisticsPage = () => {
   const [loading, setLoading] = useState(false);
@@ -242,7 +241,7 @@ const StatisticsPage = () => {
     >
       <Tabs defaultActiveKey="students">
         {/* Student Statistics Tab */}
-        <TabPane 
+        <Tabs.TabPane 
           tab={
             <span>
               <UserOutlined />
@@ -329,10 +328,10 @@ const StatisticsPage = () => {
               </>
             )}
           </Space>
-        </TabPane>
+        </Tabs.TabPane>
 
         {/* Course Statistics Tab */}
-        <TabPane 
+        <Tabs.TabPane 
           tab={
             <span>
               <BookOutlined />
@@ -466,10 +465,10 @@ const StatisticsPage = () => {
               </>
             )}
           </Space>
-        </TabPane>
+        </Tabs.TabPane>
 
         {/* Grade Statistics Tab */}
-        <TabPane 
+        <Tabs.TabPane 
           tab={
             <span>
               <FileTextOutlined />
@@ -588,10 +587,10 @@ const StatisticsPage = () => {
               </>
             )}
           </Space>
-        </TabPane>
+        </Tabs.TabPane>
 
         {/* Request Statistics Tab */}
-        <TabPane 
+        <Tabs.TabPane 
           tab={
             <span>
               <FileTextOutlined />
@@ -700,10 +699,11 @@ const StatisticsPage = () => {
               </>
             )}
           </Space>
-        </TabPane>
+        </Tabs.TabPane>
       </Tabs>
     </Card>
   );
 };
 
 export default StatisticsPage;
+
