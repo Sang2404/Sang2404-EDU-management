@@ -13,3 +13,10 @@ router.get('/academic-requests/pending', adminController.getPendingRequests);
 router.get('/academic-requests', adminController.getAllRequests);
 router.post('/academic-requests/:requestId/approve', adminController.approveRequest);
 router.post('/academic-requests/:requestId/reject', adminController.rejectRequest);
+
+// Bulk import routes
+router.post('/import/users', adminController.bulkImportUsers);
+router.post('/import/subjects', adminController.bulkImportSubjects);
+router.post('/import/course-sections', adminController.bulkImportCourseSections);
+router.post('/import/schedules', adminController.bulkImportSchedules);
+router.post('/import/faculties', adminController.bulkImportFaculties);

@@ -1,7 +1,40 @@
 # 📊 Tình trạng Dự án - Student Management System
 
-**Ngày cập nhật**: 10/02/2026
+**Ngày cập nhật**: 11/02/2026
 **Tiến độ tổng thể**: 47/88 tasks (53.4%)
+
+---
+
+## 🆕 TÍNH NĂNG MỚI: NHẬP EXCEL HÀNG LOẠT
+
+### ✅ Đã hoàn thành
+- **Nhập người dùng từ Excel** (Users bulk import)
+  - Tải file mẫu Excel
+  - Upload và xử lý file Excel
+  - Validation dữ liệu
+  - Báo cáo chi tiết lỗi từng dòng
+  - Tự động tạo tài khoản Student/Lecturer
+- **Nhập môn học từ Excel** (Subjects bulk import)
+  - Tải file mẫu Excel
+  - Validation mã môn, tín chỉ
+  - Kiểm tra trùng lặp
+- **Nhập lớp học phần từ Excel** (Course Sections bulk import)
+  - Tải file mẫu Excel
+  - Validation môn học và giảng viên tồn tại
+  - Kiểm tra học kỳ hợp lệ
+  - Kiểm tra mã lớp không trùng
+- **Nhập lịch dạy từ Excel** (Schedules bulk import)
+  - Tải file mẫu Excel
+  - Validation thứ, tiết học
+  - Kiểm tra trùng lịch (cùng lớp, cùng thứ, cùng tiết)
+  - Validation tiết kết thúc > tiết bắt đầu
+- **Nhập khoa từ Excel** (Faculties bulk import)
+  - Tải file mẫu Excel
+  - Validation mã khoa
+  - Kiểm tra trùng lặp
+
+### 🎉 Hoàn thành 100%
+Tất cả 5 tính năng nhập Excel đã được hoàn thành!
 
 ---
 

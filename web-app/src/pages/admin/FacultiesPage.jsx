@@ -1,7 +1,9 @@
 import React, { useEffect, useState } from 'react';
-import { Table, Button, Modal, Form, Input, Card, message, Space, Popconfirm, Drawer, InputNumber } from 'antd';
-import { PlusOutlined, EditOutlined, DeleteOutlined, BookOutlined } from '@ant-design/icons';
+import { Table, Button, Modal, Form, Input, Card, message, Space, Popconfirm, Drawer, InputNumber, Upload } from 'antd';
+import { PlusOutlined, EditOutlined, DeleteOutlined, BookOutlined, UploadOutlined, DownloadOutlined } from '@ant-design/icons';
+import * as XLSX from 'xlsx';
 import api from '../../config/axios';
+import { showImportResults } from '../../utils/importResultModal.jsx';
 
 const FacultiesPage = () => {
   // --- STATE CHO KHOA (FACULTIES) ---
@@ -10,6 +12,8 @@ const FacultiesPage = () => {
   const [editingFaculty, setEditingFaculty] = useState(null);
   const [form] = Form.useForm();
   const [loading, setLoading] = useState(false);
+  const [importModalVisible, setImportModalVisible] = useState(false);
+  const [importLoading, setImportLoading] = useState(false);
 
   // --- STATE CHO NGÀNH (MAJORS) ---
   const [openDrawer, setOpenDrawer] = useState(false);
@@ -78,6 +82,80 @@ const FacultiesPage = () => {
     setIsModalOpen(false);
     setEditingFaculty(null);
     form.resetFields();
+  };
+
+  // Download Excel template
+  const handleDownloadTemplate = () => {
+    const template = [
+      {
+        faculty_id: 'CNTT',
+        faculty_name: 'Công nghệ Thông tin',
+        description: 'Khoa Công nghệ Thông tin'
+      },
+      {
+        faculty_id: 'KTDN',
+        faculty_name: 'Kinh tế Doanh nghiệp',
+        description: 'Khoa Kinh tế Doanh nghiệp'
+      }
+    ];
+
+    const ws = XLSX.utils.json_to_sheet(template);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Faculties');
+    
+    ws['!cols'] = [
+      { wch: 15 }, // faculty_id
+      { wch: 30 }, // faculty_name
+      { wch: 40 }  // description
+    ];
+    
+    XLSX.writeFile(wb, 'faculties_template.xlsx');
+    message.success('Đã tải xuống file mẫu');
+  };
+
+  // Handle Excel file upload
+  const handleExcelUpload = (file) => {
+    const reader = new FileReader();
+    
+    reader.onload = async (e) => {
+      try {
+        setImportLoading(true);
+        const data = new Uint8Array(e.target.result);
+        const workbook = XLSX.read(data, { type: 'array' });
+        const sheetName = workbook.SheetNames[0];
+        const worksheet = workbook.Sheets[sheetName];
+        const jsonData = XLSX.utils.sheet_to_json(worksheet);
+        
+        if (jsonData.length === 0) {
+          message.error('File Excel không có dữ liệu');
+          setImportLoading(false);
+          return;
+        }
+        
+        // Send to backend
+        const response = await api.post('/admin/import/faculties', { faculties: jsonData });
+        
+        const { results } = response.data;
+        
+        // Show results
+        const modalShown = showImportResults(results, 'khoa');
+        if (!modalShown) {
+          message.success(`Nhập thành công ${results.success.length} khoa`);
+        }
+        
+        setImportModalVisible(false);
+        fetchFaculties();
+        
+      } catch (error) {
+        console.error('Error importing Excel:', error);
+        message.error(error.response?.data?.error || 'Không thể nhập dữ liệu từ Excel');
+      } finally {
+        setImportLoading(false);
+      }
+    };
+    
+    reader.readAsArrayBuffer(file);
+    return false;
   };
 
   // --- API CALLS: NGÀNH ---
@@ -188,9 +266,17 @@ const FacultiesPage = () => {
     <Card
       title="Quản lý Khoa"
       extra={
-        <Button type="primary" icon={<PlusOutlined />} onClick={() => setIsModalOpen(true)}>
-          Thêm Khoa
-        </Button>
+        <Space>
+          <Button 
+            icon={<UploadOutlined />}
+            onClick={() => setImportModalVisible(true)}
+          >
+            Nhập Excel
+          </Button>
+          <Button type="primary" icon={<PlusOutlined />} onClick={() => setIsModalOpen(true)}>
+            Thêm Khoa
+          </Button>
+        </Space>
       }
     >
       <Table 
@@ -228,6 +314,53 @@ const FacultiesPage = () => {
             <Input.TextArea placeholder="Nhập mô tả..." />
           </Form.Item>
         </Form>
+      </Modal>
+
+      {/* Import Excel Modal */}
+      <Modal
+        title="Nhập khoa từ Excel"
+        open={importModalVisible}
+        onCancel={() => setImportModalVisible(false)}
+        footer={null}
+        width={600}
+      >
+        <Space direction="vertical" style={{ width: '100%' }} size="large">
+          <div>
+            <p>Tải xuống file mẫu để xem định dạng dữ liệu:</p>
+            <Button 
+              icon={<DownloadOutlined />} 
+              onClick={handleDownloadTemplate}
+            >
+              Tải file mẫu
+            </Button>
+          </div>
+          
+          <div>
+            <p>Cấu trúc file Excel:</p>
+            <ul>
+              <li><strong>faculty_id</strong>: Mã khoa (bắt buộc, không trùng)</li>
+              <li><strong>faculty_name</strong>: Tên khoa (bắt buộc)</li>
+              <li><strong>description</strong>: Mô tả (tùy chọn)</li>
+            </ul>
+          </div>
+          
+          <div>
+            <p>Chọn file Excel để nhập:</p>
+            <Upload
+              accept=".xlsx,.xls"
+              beforeUpload={handleExcelUpload}
+              showUploadList={false}
+            >
+              <Button 
+                icon={<UploadOutlined />} 
+                loading={importLoading}
+                type="primary"
+              >
+                {importLoading ? 'Đang xử lý...' : 'Chọn file Excel'}
+              </Button>
+            </Upload>
+          </div>
+        </Space>
       </Modal>
 
       {/* DRAWER QUẢN LÝ NGÀNH */}

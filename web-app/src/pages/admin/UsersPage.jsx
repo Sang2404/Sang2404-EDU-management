@@ -1,7 +1,9 @@
 import React, { useEffect, useState } from 'react';
-import { Table, Tag, Select, Card, Button, Modal, Form, Input, message, Space, Popconfirm, Switch } from 'antd';
-import { PlusOutlined, EditOutlined, DeleteOutlined, LockOutlined, UnlockOutlined } from '@ant-design/icons';
+import { Table, Tag, Select, Card, Button, Modal, Form, Input, message, Space, Popconfirm, Switch, Upload } from 'antd';
+import { PlusOutlined, EditOutlined, DeleteOutlined, LockOutlined, UnlockOutlined, UploadOutlined, DownloadOutlined } from '@ant-design/icons';
+import * as XLSX from 'xlsx';
 import api from '../../config/axios';
+import { showImportResults } from '../../utils/importResultModal.jsx';
 
 const UsersPage = () => {
   const [users, setUsers] = useState([]);
@@ -15,6 +17,8 @@ const UsersPage = () => {
     pageSize: 10,
     total: 0
   });
+  const [importModalVisible, setImportModalVisible] = useState(false);
+  const [importLoading, setImportLoading] = useState(false);
 
   const fetchUsers = async (page = 1, role = '') => {
     setLoading(true);
@@ -110,6 +114,87 @@ const UsersPage = () => {
       console.error('Failed to toggle user status:', error);
       message.error('Không thể thay đổi trạng thái tài khoản');
     }
+  };
+
+  // Download Excel template
+  const handleDownloadTemplate = () => {
+    const template = [
+      {
+        email: 'example@gmail.com',
+        username: '2224802010365',
+        full_name: 'Nguyễn Văn A',
+        role: 'STUDENT',
+        is_active: true
+      },
+      {
+        email: 'lecturer@gmail.com',
+        username: 'GV001',
+        full_name: 'Trần Thị B',
+        role: 'LECTURER',
+        is_active: true
+      }
+    ];
+
+    const ws = XLSX.utils.json_to_sheet(template);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Users');
+    
+    // Set column widths
+    ws['!cols'] = [
+      { wch: 25 }, // email
+      { wch: 15 }, // username
+      { wch: 20 }, // full_name
+      { wch: 10 }, // role
+      { wch: 10 }  // is_active
+    ];
+    
+    XLSX.writeFile(wb, 'users_template.xlsx');
+    message.success('Đã tải xuống file mẫu');
+  };
+
+  // Handle Excel file upload
+  const handleExcelUpload = (file) => {
+    const reader = new FileReader();
+    
+    reader.onload = async (e) => {
+      try {
+        setImportLoading(true);
+        const data = new Uint8Array(e.target.result);
+        const workbook = XLSX.read(data, { type: 'array' });
+        const sheetName = workbook.SheetNames[0];
+        const worksheet = workbook.Sheets[sheetName];
+        const jsonData = XLSX.utils.sheet_to_json(worksheet);
+        
+        if (jsonData.length === 0) {
+          message.error('File Excel không có dữ liệu');
+          setImportLoading(false);
+          return;
+        }
+        
+        // Send to backend
+        const response = await api.post('/admin/import/users', { users: jsonData });
+        
+        const { results } = response.data;
+        
+        // Show results
+        const modalShown = showImportResults(results, 'người dùng');
+        if (!modalShown) {
+          message.success(`Nhập thành công ${results.success.length} người dùng`);
+        }
+        
+        setImportModalVisible(false);
+        fetchUsers(pagination.current, roleFilter);
+        
+      } catch (error) {
+        console.error('Error importing Excel:', error);
+        message.error(error.response?.data?.error || 'Không thể nhập dữ liệu từ Excel');
+      } finally {
+        setImportLoading(false);
+      }
+    };
+    
+    reader.readAsArrayBuffer(file);
+    return false; // Prevent auto upload
   };
 
   const columns = [
@@ -227,6 +312,12 @@ const UsersPage = () => {
               ]}
             />
             <Button 
+              icon={<UploadOutlined />}
+              onClick={() => setImportModalVisible(true)}
+            >
+              Nhập Excel
+            </Button>
+            <Button 
               type="primary" 
               icon={<PlusOutlined />}
               onClick={handleAdd}
@@ -329,6 +420,55 @@ const UsersPage = () => {
             </Space>
           </Form.Item>
         </Form>
+      </Modal>
+
+      {/* Import Excel Modal */}
+      <Modal
+        title="Nhập người dùng từ Excel"
+        open={importModalVisible}
+        onCancel={() => setImportModalVisible(false)}
+        footer={null}
+        width={600}
+      >
+        <Space direction="vertical" style={{ width: '100%' }} size="large">
+          <div>
+            <p>Tải xuống file mẫu để xem định dạng dữ liệu:</p>
+            <Button 
+              icon={<DownloadOutlined />} 
+              onClick={handleDownloadTemplate}
+            >
+              Tải file mẫu
+            </Button>
+          </div>
+          
+          <div>
+            <p>Cấu trúc file Excel:</p>
+            <ul>
+              <li><strong>email</strong>: Email người dùng (bắt buộc)</li>
+              <li><strong>username</strong>: Mã sinh viên/giảng viên (bắt buộc)</li>
+              <li><strong>full_name</strong>: Họ và tên (bắt buộc)</li>
+              <li><strong>role</strong>: STUDENT, LECTURER hoặc ADMIN (bắt buộc)</li>
+              <li><strong>is_active</strong>: true hoặc false (mặc định: true)</li>
+            </ul>
+          </div>
+          
+          <div>
+            <p>Chọn file Excel để nhập:</p>
+            <Upload
+              accept=".xlsx,.xls"
+              beforeUpload={handleExcelUpload}
+              showUploadList={false}
+            >
+              <Button 
+                icon={<UploadOutlined />} 
+                loading={importLoading}
+                type="primary"
+              >
+                {importLoading ? 'Đang xử lý...' : 'Chọn file Excel'}
+              </Button>
+            </Upload>
+          </div>
+        </Space>
       </Modal>
     </>
   );
