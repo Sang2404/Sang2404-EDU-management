@@ -1,6 +1,6 @@
 @echo off
 echo ========================================
-echo   Stopping Student Management System
+echo   Dung ung dung quan ly sinh vien
 echo ========================================
 echo.
 

@@ -1,7 +1,7 @@
 {
-  "name": "student-management-server",
+  "name": "quan-ly-sinh-vien-server",
   "version": "1.0.0",
-  "description": "Backend API for Student Management System",
+  "description": "Backend API - Ứng dụng đa nền tảng quản lý sinh viên",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",

@@ -1,4 +1,4 @@
-# 📊 Tình trạng Dự án - Student Management System
+# 📊 Tình trạng Dự án - Xây dựng ứng dụng đa nền tảng quản lý sinh viên
 
 **Ngày cập nhật**: 11/02/2026
 **Tiến độ tổng thể**: 47/88 tasks (53.4%)

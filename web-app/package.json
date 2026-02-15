@@ -1,8 +1,9 @@
 {
-  "name": "student-management-web",
+  "name": "quan-ly-sinh-vien-web",
   "private": true,
-  "version": "0.0.0",
+  "version": "1.0.0",
   "type": "module",
+  "description": "Web App - Ứng dụng đa nền tảng quản lý sinh viên",
   "scripts": {
     "dev": "vite",
     "build": "vite build",

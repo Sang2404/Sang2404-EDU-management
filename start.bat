@@ -1,6 +1,7 @@
 @echo off
 echo ========================================
-echo   Student Management System
+echo   Xay dung ung dung da nen tang
+echo   quan ly sinh vien
 echo   Starting Backend and Frontend...
 echo ========================================
 echo.

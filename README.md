@@ -1,15 +1,4 @@
-# 🎓 Student Management System (Hệ thống Quản lý Sinh viên)
-
-Hệ thống quản lý sinh viên toàn diện với các tính năng quản lý người dùng, lớp học phần, điểm số, lịch học và thống kê. Hỗ trợ nhập liệu hàng loạt qua Excel.
-
-## ✨ Tính năng nổi bật
-
-- 🎯 **100% hoàn thành Web App** (47/47 tasks)
-- 📊 **Nhập Excel hàng loạt** cho Users, Subjects, Course Sections, Schedules, Faculties
-- 🔍 **Xử lý trùng lặp thông minh** - Tự động bỏ qua nếu giống hệt, báo lỗi nếu conflict
-- 🎨 **UI/UX đẹp** với Ant Design
-- 🔐 **Google Sign-in** với Firebase Authentication
-- 📈 **Thống kê & Báo cáo** với biểu đồ trực quan
+# 🎓 Xây dựng ứng dụng đa nền tảng quản lý sinh viên
 
 ## 📋 Tính năng chi tiết
 
@@ -156,17 +145,6 @@ npm run dev
 - Backend API: http://localhost:5001
 - Frontend Web: http://localhost:3000
 
-## 🔐 Tài khoản mặc định
-
-Sau khi chạy schema, hệ thống có 3 tài khoản test:
-
-| Role | Email | Username |
-|------|-------|----------|
-| Admin | skillsaanh@gmail.com | ADMIN01 |
-| Lecturer | sinfour503@gmail.com | GV001 |
-| Student | 2224802010365@student.tdmu.edu.vn | 2224802010365 |
-
-**Lưu ý:** Hệ thống sử dụng Google Sign-in, không có mật khẩu truyền thống.
 
 ## 📁 Cấu trúc dự án
 
@@ -221,14 +199,6 @@ Hệ thống hỗ trợ nhập dữ liệu hàng loạt qua Excel cho:
 4. **Lịch dạy** (Schedules) - Thứ, Tiết, Phòng học
 5. **Khoa** (Faculties) - Mã khoa, Tên khoa
 
-### Tính năng đặc biệt:
-- ✅ Tải file mẫu Excel
-- ✅ Validation chi tiết từng dòng
-- ✅ Xử lý trùng lặp thông minh:
-  - Bỏ qua nếu dữ liệu giống hệt (màu vàng)
-  - Báo lỗi chi tiết nếu trùng key nhưng khác thông tin (màu đỏ)
-- ✅ Báo cáo kết quả: Thành công / Bỏ qua / Lỗi
-
 Chi tiết: [EXCEL_IMPORT_GUIDE.md](EXCEL_IMPORT_GUIDE.md)
 
 ## � Tài liệu
@@ -237,29 +207,7 @@ Chi tiết: [EXCEL_IMPORT_GUIDE.md](EXCEL_IMPORT_GUIDE.md)
 - [📈 PROJECT_STATUS.md](PROJECT_STATUS.md) - Trạng thái dự án chi tiết
 - [🚀 IMPROVEMENT_ROADMAP.txt](IMPROVEMENT_ROADMAP.txt) - Kế hoạch phát triển
 
-## 🐛 Troubleshooting
-
-### Lỗi đăng nhập
-- Kiểm tra email có trong database không
-- Kiểm tra Firebase config
-- Đảm bảo is_active = true
-
-### Lỗi database
-- Kiểm tra PostgreSQL đang chạy
-- Kiểm tra thông tin kết nối trong `.env`
-- Chạy lại schema nếu cần
-
-### Lỗi port
-- Backend mặc định: 5001
-- Frontend mặc định: 3000
-- Đảm bảo không có ứng dụng khác dùng các port này
-
-### Lỗi Excel import
-- Kiểm tra định dạng file (.xlsx hoặc .xls)
-- Đảm bảo dòng đầu tiên là header
-- Xem chi tiết lỗi trong modal kết quả
-
-## 📊 Thống kê dự án
+## � Thống kê dự áng
 
 - **Web App**: 47/47 tasks (100% ✅)
 - **Mobile App**: 0/41 tasks (0% ⏳)
@@ -294,30 +242,4 @@ Chi tiết: [EXCEL_IMPORT_GUIDE.md](EXCEL_IMPORT_GUIDE.md)
 
 Chi tiết: [IMPROVEMENT_ROADMAP.txt](IMPROVEMENT_ROADMAP.txt)
 
-## 🤝 Đóng góp
 
-Mọi đóng góp đều được chào đón! Vui lòng:
-1. Fork repository
-2. Tạo branch mới (`git checkout -b feature/AmazingFeature`)
-3. Commit changes (`git commit -m 'Add some AmazingFeature'`)
-4. Push to branch (`git push origin feature/AmazingFeature`)
-5. Mở Pull Request
-
-## 📝 License
-
-Dự án này được phát triển cho mục đích học tập.
-
-## 👥 Tác giả
-
-- **Sang Nguyen** - [GitHub](https://github.com/Sang2404)
-
-## 🙏 Acknowledgments
-
-- Ant Design team
-- Firebase team
-- PostgreSQL community
-- React community
-
----
-
-**⭐ Nếu thấy dự án hữu ích, hãy cho một star nhé!**

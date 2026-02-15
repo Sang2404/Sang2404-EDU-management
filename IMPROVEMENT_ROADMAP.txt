@@ -1,4 +1,5 @@
-# 🚀 KẾ HOẠCH CẢI TIẾN HỆ THỐNG STUDENT MANAGEMENT
+# 🚀 KẾ HOẠCH CẢI TIẾN HỆ THỐNG
+# Xây dựng ứng dụng đa nền tảng quản lý sinh viên
 
 Ngày tạo: 11/02/2026
 Trạng thái hiện tại: Web App hoàn thành 47/47 tasks (100%)

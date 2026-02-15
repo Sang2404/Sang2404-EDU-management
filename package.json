@@ -1,7 +1,7 @@
 {
-  "name": "student-management-system",
+  "name": "ung-dung-da-nen-tang-quan-ly-sinh-vien",
   "version": "1.0.0",
-  "description": "Root script to run fullstack",
+  "description": "Xây dựng ứng dụng đa nền tảng quản lý sinh viên - Web & Mobile",
   "scripts": {
     "start": "npm run dev",
     "dev": "concurrently \"npm run dev --prefix server\" \"npm run dev --prefix web-app\"",
