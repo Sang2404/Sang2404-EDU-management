@@ -207,7 +207,7 @@ Chi tiết: [EXCEL_IMPORT_GUIDE.md](EXCEL_IMPORT_GUIDE.md)
 - [📈 PROJECT_STATUS.md](PROJECT_STATUS.md) - Trạng thái dự án chi tiết
 - [🚀 IMPROVEMENT_ROADMAP.txt](IMPROVEMENT_ROADMAP.txt) - Kế hoạch phát triển
 
-## � Thống kê dự áng
+## � Thống kê dự án
 
 - **Web App**: 47/47 tasks (100% ✅)
 - **Mobile App**: 0/41 tasks (0% ⏳)
