@@ -10,21 +10,27 @@ exports.login = async (req, res) => {
 
   try {
     // 1. Xác thực Token với Firebase
+    console.log('🔐 Đang xác thực token...');
     const decodedToken = await admin.auth().verifyIdToken(token);
     console.log('✅ Email đã xác thực từ Token:', decodedToken.email);
     const { email } = decodedToken;
 
     // 2. Kiểm tra xem người dùng có tồn tại trong cơ sở dữ liệu không
+    console.log('🔍 Đang tìm user trong database:', email);
     const userQuery = 'SELECT * FROM users WHERE email = $1 AND is_active = TRUE';
     const result = await pool.query(userQuery, [email]);
+    console.log('📊 Kết quả tìm kiếm:', result.rows.length, 'user(s)');
 
     if (result.rows.length === 0) {
+      console.log('❌ User không tồn tại hoặc chưa kích hoạt');
       return res.status(401).json({ 
-        message: 'Không được phép. Tài khoản không tồn tại hoặc chưa kích hoạt. Vui lòng liên hệ Admin.' 
+        message: 'Không được phép. Tài khoản không tồn tại hoặc chưa kích hoạt. Vui lòng liên hệ Admin.',
+        email: email
       });
     }
 
     const user = result.rows[0];
+    console.log('✅ Đăng nhập thành công:', user.email, '-', user.role);
 
     // 3. Trả về thông tin người dùng
     res.json({
@@ -40,7 +46,8 @@ exports.login = async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Lỗi đăng nhập:', error);
+    console.error('❌ Lỗi đăng nhập:', error.message);
+    console.error('Stack:', error.stack);
     res.status(401).json({ message: 'Xác thực đăng nhập thất bại', error: error.message });
   }
 };

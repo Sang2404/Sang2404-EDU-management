@@ -31,6 +31,11 @@ const SchedulesPage = () => {
 
   // Filter states
   const [filterSectionId, setFilterSectionId] = useState(null);
+  const [filterSemester, setFilterSemester] = useState(null);
+  const [filterAcademicYear, setFilterAcademicYear] = useState(null);
+  const [filterDayOfWeek, setFilterDayOfWeek] = useState(null);
+  const [filterRoom, setFilterRoom] = useState(null);
+  const [searchText, setSearchText] = useState('');
   
   const [importModalVisible, setImportModalVisible] = useState(false);
   const [importLoading, setImportLoading] = useState(false);
@@ -232,82 +237,126 @@ const SchedulesPage = () => {
       title: 'Mã lớp',
       dataIndex: 'section_code',
       key: 'section_code',
-      width: 120,
-      fixed: 'left'
+      width: 130,
+      fixed: 'left',
+      sorter: (a, b) => a.section_code.localeCompare(b.section_code)
     },
     {
       title: 'Môn học',
       dataIndex: 'subject_name',
       key: 'subject_name',
-      width: 200
-    },
-    {
-      title: 'Giảng viên',
-      dataIndex: 'lecturer_name',
-      key: 'lecturer_name',
-      width: 150
-    },
-    {
-      title: 'Học kỳ',
-      key: 'semester_year',
-      width: 150,
-      render: (_, record) => `${record.semester} - ${record.academic_year}`
+      width: 180
     },
     {
       title: 'Thứ',
       dataIndex: 'day_name',
       key: 'day_name',
-      width: 100,
+      width: 90,
       render: (text, record) => (
         <Tag color={getDayColor(record.day_of_week)}>{text}</Tag>
-      )
+      ),
+      sorter: (a, b) => a.day_of_week - b.day_of_week,
+      defaultSortOrder: 'ascend'
     },
     {
       title: 'Tiết',
       key: 'periods',
-      width: 100,
-      render: (_, record) => `${record.start_period} - ${record.end_period}`
+      width: 90,
+      render: (_, record) => (
+        <strong>{record.start_period} - {record.end_period}</strong>
+      ),
+      sorter: (a, b) => a.start_period - b.start_period
     },
     {
       title: 'Phòng',
       dataIndex: 'room',
       key: 'room',
-      width: 100,
-      render: (text) => text || <span style={{ color: '#999' }}>Chưa xác định</span>
+      width: 90,
+      render: (text) => text ? <Tag color="blue">{text}</Tag> : <span style={{ color: '#999' }}>-</span>
+    },
+    {
+      title: 'Giảng viên',
+      dataIndex: 'lecturer_name',
+      key: 'lecturer_name',
+      width: 140
+    },
+    {
+      title: 'Học kỳ',
+      key: 'semester_year',
+      width: 130,
+      render: (_, record) => `${record.semester} ${record.academic_year}`
     },
     {
       title: 'Thao tác',
       key: 'action',
       fixed: 'right',
-      width: 120,
+      width: 100,
       render: (_, record) => (
-        <Space>
+        <Space size="small">
           <Button 
             type="link" 
+            size="small"
             icon={<EditOutlined />} 
             onClick={() => handleEdit(record)}
-          >
-            Sửa
-          </Button>
+          />
           <Popconfirm
-            title="Bạn có chắc muốn xóa lịch học này?"
+            title="Xóa lịch học này?"
             onConfirm={() => handleDelete(record.schedule_id)}
             okText="Xóa"
             cancelText="Hủy"
           >
-            <Button type="link" danger icon={<DeleteOutlined />}>
-              Xóa
-            </Button>
+            <Button type="link" size="small" danger icon={<DeleteOutlined />} />
           </Popconfirm>
         </Space>
       )
     }
   ];
 
-  // Filter schedules
-  const filteredSchedules = filterSectionId 
-    ? schedules.filter(s => s.section_id === filterSectionId)
-    : schedules;
+  // Filter and sort schedules
+  let filteredSchedules = schedules;
+  
+  // Apply filters
+  if (filterSectionId) {
+    filteredSchedules = filteredSchedules.filter(s => s.section_id === filterSectionId);
+  }
+  if (filterSemester) {
+    filteredSchedules = filteredSchedules.filter(s => s.semester === filterSemester);
+  }
+  if (filterAcademicYear) {
+    filteredSchedules = filteredSchedules.filter(s => s.academic_year === filterAcademicYear);
+  }
+  if (filterDayOfWeek) {
+    filteredSchedules = filteredSchedules.filter(s => s.day_of_week === filterDayOfWeek);
+  }
+  if (filterRoom) {
+    filteredSchedules = filteredSchedules.filter(s => s.room && s.room.toLowerCase().includes(filterRoom.toLowerCase()));
+  }
+  if (searchText) {
+    filteredSchedules = filteredSchedules.filter(s => 
+      s.section_code?.toLowerCase().includes(searchText.toLowerCase()) ||
+      s.subject_name?.toLowerCase().includes(searchText.toLowerCase()) ||
+      s.lecturer_name?.toLowerCase().includes(searchText.toLowerCase())
+    );
+  }
+  
+  // Sort by section_code first (to group same classes together), then day_of_week, then start_period
+  filteredSchedules = [...filteredSchedules].sort((a, b) => {
+    // First sort by section_code to group same classes
+    if (a.section_code !== b.section_code) {
+      return a.section_code.localeCompare(b.section_code);
+    }
+    // Then by day of week
+    if (a.day_of_week !== b.day_of_week) {
+      return a.day_of_week - b.day_of_week;
+    }
+    // Finally by start period
+    return a.start_period - b.start_period;
+  });
+
+  // Get unique values for filters
+  const uniqueSemesters = [...new Set(schedules.map(s => s.semester))].filter(Boolean);
+  const uniqueAcademicYears = [...new Set(schedules.map(s => s.academic_year))].filter(Boolean);
+  const uniqueRooms = [...new Set(schedules.map(s => s.room))].filter(Boolean).sort();
 
   return (
     <Card 
@@ -332,11 +381,71 @@ const SchedulesPage = () => {
       }
     >
       <div style={{ marginBottom: 16 }}>
-        <Space>
-          <span>Lọc theo lớp:</span>
+        <Space wrap size="middle">
+          <Input.Search
+            placeholder="Tìm mã lớp, môn học, giảng viên..."
+            allowClear
+            style={{ width: 280 }}
+            value={searchText}
+            onChange={(e) => setSearchText(e.target.value)}
+          />
+          
           <Select
-            style={{ width: 300 }}
-            placeholder="Chọn lớp học phần"
+            style={{ width: 200 }}
+            placeholder="Lọc theo học kỳ"
+            allowClear
+            value={filterSemester}
+            onChange={setFilterSemester}
+          >
+            {uniqueSemesters.map(semester => (
+              <Option key={semester} value={semester}>{semester}</Option>
+            ))}
+          </Select>
+
+          <Select
+            style={{ width: 150 }}
+            placeholder="Lọc theo năm học"
+            allowClear
+            value={filterAcademicYear}
+            onChange={setFilterAcademicYear}
+          >
+            {uniqueAcademicYears.map(year => (
+              <Option key={year} value={year}>{year}</Option>
+            ))}
+          </Select>
+
+          <Select
+            style={{ width: 120 }}
+            placeholder="Lọc theo thứ"
+            allowClear
+            value={filterDayOfWeek}
+            onChange={setFilterDayOfWeek}
+          >
+            <Option value={2}>Thứ 2</Option>
+            <Option value={3}>Thứ 3</Option>
+            <Option value={4}>Thứ 4</Option>
+            <Option value={5}>Thứ 5</Option>
+            <Option value={6}>Thứ 6</Option>
+            <Option value={7}>Thứ 7</Option>
+            <Option value={8}>Chủ nhật</Option>
+          </Select>
+
+          <Select
+            style={{ width: 120 }}
+            placeholder="Lọc theo phòng"
+            allowClear
+            showSearch
+            value={filterRoom}
+            onChange={setFilterRoom}
+          >
+            {uniqueRooms.map(room => (
+              <Option key={room} value={room}>{room}</Option>
+            ))}
+          </Select>
+
+          <Select
+            style={{ width: 280 }}
+            placeholder="Lọc theo lớp học phần"
             allowClear
             showSearch
             optionFilterProp="children"
@@ -345,10 +454,25 @@ const SchedulesPage = () => {
           >
             {courseSections.map(section => (
               <Option key={section.section_id} value={section.section_id}>
-                {section.section_code} - {section.subject_name} ({section.semester} - {section.academic_year})
+                {section.section_code} - {section.subject_name}
               </Option>
             ))}
           </Select>
+
+          {(searchText || filterSemester || filterAcademicYear || filterDayOfWeek || filterRoom || filterSectionId) && (
+            <Button 
+              onClick={() => {
+                setSearchText('');
+                setFilterSemester(null);
+                setFilterAcademicYear(null);
+                setFilterDayOfWeek(null);
+                setFilterRoom(null);
+                setFilterSectionId(null);
+              }}
+            >
+              Xóa bộ lọc
+            </Button>
+          )}
         </Space>
       </div>
 
@@ -359,10 +483,29 @@ const SchedulesPage = () => {
         loading={loading}
         scroll={{ x: 1200 }}
         pagination={{
-          pageSize: 10,
+          pageSize: 20,
           showTotal: (total) => `Tổng số ${total} lịch học`
         }}
+        rowClassName={(record) => {
+          // Get unique section codes and find index
+          const uniqueSections = [...new Set(filteredSchedules.map(s => s.section_code))];
+          const sectionIndex = uniqueSections.indexOf(record.section_code);
+          return sectionIndex % 2 === 0 ? 'schedule-group-even' : 'schedule-group-odd';
+        }}
       />
+
+      <style>{`
+        .schedule-group-even {
+          background-color: #f0f5ff !important;
+        }
+        .schedule-group-odd {
+          background-color: #ffffff !important;
+        }
+        .ant-table-tbody > tr.schedule-group-even:hover > td,
+        .ant-table-tbody > tr.schedule-group-odd:hover > td {
+          background-color: #e6f7ff !important;
+        }
+      `}</style>
 
       <Modal
         title={editingSchedule ? 'Sửa lịch học' : 'Thêm lịch học'}

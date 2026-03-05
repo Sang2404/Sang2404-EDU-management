@@ -60,9 +60,11 @@ const GradesPage = () => {
     .reduce((sum, grade) => sum + (grade.credits || 0), 0);
   
   const totalGradePoints = filteredGrades.reduce((sum, grade) => {
-    return sum + (grade.total_4 * grade.credits);
+    const gradePoint = grade.total_4 != null && typeof grade.total_4 === 'number' ? grade.total_4 : 0;
+    const credits = grade.credits || 0;
+    return sum + (gradePoint * credits);
   }, 0);
-  const gpa = totalCredits > 0 ? (totalGradePoints / totalCredits).toFixed(2) : 0;
+  const gpa = totalCredits > 0 ? (totalGradePoints / totalCredits).toFixed(2) : '0.00';
 
   // Group by semester
   const groupedGrades = {};
@@ -106,7 +108,7 @@ const GradesPage = () => {
       key: 'attendance',
       width: 100,
       align: 'center',
-      render: (value) => value?.toFixed(1) || '-'
+      render: (value) => value != null && typeof value === 'number' ? value.toFixed(1) : '-'
     },
     {
       title: 'Giữa kỳ',
@@ -114,7 +116,7 @@ const GradesPage = () => {
       key: 'midterm',
       width: 100,
       align: 'center',
-      render: (value) => value?.toFixed(1) || '-'
+      render: (value) => value != null && typeof value === 'number' ? value.toFixed(1) : '-'
     },
     {
       title: 'Cuối kỳ',
@@ -122,7 +124,7 @@ const GradesPage = () => {
       key: 'final',
       width: 100,
       align: 'center',
-      render: (value) => value?.toFixed(1) || '-'
+      render: (value) => value != null && typeof value === 'number' ? value.toFixed(1) : '-'
     },
     {
       title: 'Tổng kết',
@@ -132,10 +134,10 @@ const GradesPage = () => {
       render: (_, record) => (
         <div>
           <div style={{ fontWeight: 'bold', fontSize: 16 }}>
-            {record.total_10?.toFixed(1) || '-'}
+            {record.total_10 != null && typeof record.total_10 === 'number' ? record.total_10.toFixed(1) : '-'}
           </div>
           <div style={{ fontSize: 12, color: '#666' }}>
-            ({record.total_4?.toFixed(1) || '-'})
+            ({record.total_4 != null && typeof record.total_4 === 'number' ? record.total_4.toFixed(1) : '-'})
           </div>
         </div>
       )
@@ -286,9 +288,13 @@ const GradesPage = () => {
                     GPA học kỳ: {
                       (() => {
                         const semesterGrades = groupedGrades[semester];
-                        const semesterCredits = semesterGrades.reduce((sum, g) => sum + g.credits, 0);
-                        const semesterPoints = semesterGrades.reduce((sum, g) => sum + (g.total_4 * g.credits), 0);
-                        return semesterCredits > 0 ? (semesterPoints / semesterCredits).toFixed(2) : 0;
+                        const semesterCredits = semesterGrades.reduce((sum, g) => sum + (g.credits || 0), 0);
+                        const semesterPoints = semesterGrades.reduce((sum, g) => {
+                          const gradePoint = g.total_4 != null && typeof g.total_4 === 'number' ? g.total_4 : 0;
+                          const credits = g.credits || 0;
+                          return sum + (gradePoint * credits);
+                        }, 0);
+                        return semesterCredits > 0 ? (semesterPoints / semesterCredits).toFixed(2) : '0.00';
                       })()
                     }
                   </strong>
