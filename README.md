@@ -1,4 +1,4 @@
-# Hệ Thống Quản Lý Sinh Viên
+# Quản Lý Sinh Viên
 
 Ứng dụng quản lý sinh viên toàn diện với các chức năng: quản lý môn học, lớp học phần, nhập điểm, duyệt điểm, xem điểm, điểm danh, và thống kê.
 
@@ -146,3 +146,4 @@ MIT
 
 **Phiên bản**: 1.0  
 **Cập nhật**: 2026-03-11
+
