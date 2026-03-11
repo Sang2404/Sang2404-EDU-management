@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { Card, Table, Tag, Statistic, Row, Col, Empty, Spin, Select } from 'antd';
+import { useState, useEffect } from 'react';
+import { Card, Table, Tag, Statistic, Row, Col, Empty, Spin, Select, message, Button, Space } from 'antd';
 import { TrophyOutlined, BookOutlined, CheckCircleOutlined, CloseCircleOutlined } from '@ant-design/icons';
 import api from '../../config/axios';
 
@@ -10,8 +10,11 @@ const GradesPage = () => {
   const [loading, setLoading] = useState(false);
   const [semesterFilter, setSemesterFilter] = useState('');
   const [yearFilter, setYearFilter] = useState('');
+  const [user, setUser] = useState(null);
 
   useEffect(() => {
+    const userData = JSON.parse(localStorage.getItem('user'));
+    setUser(userData);
     fetchGrades();
   }, []);
 
@@ -19,10 +22,13 @@ const GradesPage = () => {
     setLoading(true);
     try {
       const user = JSON.parse(localStorage.getItem('user'));
-      const response = await api.get(`/grades/students/${user.username}`);
+      // Use student_id instead of username for fetching grades
+      const studentId = user.student_id || user.username;
+      const response = await api.get(`/grades/students/${studentId}`);
       setGrades(response.data || []);
     } catch (error) {
-      console.error('Error fetching grades:', error);
+      const errorMsg = error.response?.data?.error || error.response?.data?.message || 'Không thể tải bảng điểm';
+      message.error(errorMsg);
     } finally {
       setLoading(false);
     }
@@ -53,13 +59,17 @@ const GradesPage = () => {
     return true;
   });
 
-  // Calculate statistics
-  const totalCredits = filteredGrades.reduce((sum, grade) => sum + (grade.credits || 0), 0);
-  const passedCredits = filteredGrades
+  // Calculate statistics (chỉ tính các môn đã có điểm)
+  const gradesWithScores = filteredGrades.filter(grade => 
+    grade.total_10 != null && grade.total_10 !== undefined
+  );
+  
+  const totalCredits = gradesWithScores.reduce((sum, grade) => sum + (grade.credits || 0), 0);
+  const passedCredits = gradesWithScores
     .filter(grade => getPassStatus(grade.grade_char))
     .reduce((sum, grade) => sum + (grade.credits || 0), 0);
   
-  const totalGradePoints = filteredGrades.reduce((sum, grade) => {
+  const totalGradePoints = gradesWithScores.reduce((sum, grade) => {
     const gradePoint = grade.total_4 != null && typeof grade.total_4 === 'number' ? grade.total_4 : 0;
     const credits = grade.credits || 0;
     return sum + (gradePoint * credits);
@@ -148,11 +158,17 @@ const GradesPage = () => {
       key: 'grade_char',
       width: 100,
       align: 'center',
-      render: (gradeChar) => (
-        <Tag color={getGradeColor(gradeChar)} style={{ fontSize: 14, fontWeight: 'bold' }}>
-          {gradeChar}
-        </Tag>
-      )
+      render: (gradeChar, record) => {
+        // Chỉ hiển thị điểm chữ khi đã có điểm tổng kết
+        if (record.total_10 == null || record.total_10 === undefined) {
+          return <span style={{ color: '#999' }}>-</span>;
+        }
+        return (
+          <Tag color={getGradeColor(gradeChar)} style={{ fontSize: 14, fontWeight: 'bold' }}>
+            {gradeChar || '-'}
+          </Tag>
+        );
+      }
     },
     {
       title: 'Kết quả',
@@ -160,6 +176,10 @@ const GradesPage = () => {
       width: 100,
       align: 'center',
       render: (_, record) => {
+        // Chỉ hiển thị kết quả khi đã có điểm tổng kết
+        if (record.total_10 == null || record.total_10 === undefined) {
+          return <span style={{ color: '#999' }}>Chưa có</span>;
+        }
         const passed = getPassStatus(record.grade_char);
         return passed ? (
           <Tag icon={<CheckCircleOutlined />} color="success">Đạt</Tag>
@@ -232,12 +252,13 @@ const GradesPage = () => {
       <Card
         title="Bảng điểm"
         extra={
-          <div style={{ display: 'flex', gap: 8 }}>
+          <Space>
             <Select
               placeholder="Học kỳ"
               style={{ width: 120 }}
               allowClear
               onChange={setSemesterFilter}
+              aria-label="Lọc bảng điểm theo học kỳ"
             >
               <Option value="HK1">HK1</Option>
               <Option value="HK2">HK2</Option>
@@ -248,12 +269,13 @@ const GradesPage = () => {
               style={{ width: 150 }}
               allowClear
               onChange={setYearFilter}
+              aria-label="Lọc bảng điểm theo năm học"
             >
               <Option value="2023-2024">2023-2024</Option>
               <Option value="2024-2025">2024-2025</Option>
               <Option value="2025-2026">2025-2026</Option>
             </Select>
-          </div>
+          </Space>
         }
       >
         {filteredGrades.length === 0 ? (
@@ -288,8 +310,12 @@ const GradesPage = () => {
                     GPA học kỳ: {
                       (() => {
                         const semesterGrades = groupedGrades[semester];
-                        const semesterCredits = semesterGrades.reduce((sum, g) => sum + (g.credits || 0), 0);
-                        const semesterPoints = semesterGrades.reduce((sum, g) => {
+                        // Chỉ tính các môn đã có điểm
+                        const gradesWithScores = semesterGrades.filter(g => 
+                          g.total_10 != null && g.total_10 !== undefined
+                        );
+                        const semesterCredits = gradesWithScores.reduce((sum, g) => sum + (g.credits || 0), 0);
+                        const semesterPoints = gradesWithScores.reduce((sum, g) => {
                           const gradePoint = g.total_4 != null && typeof g.total_4 === 'number' ? g.total_4 : 0;
                           const credits = g.credits || 0;
                           return sum + (gradePoint * credits);

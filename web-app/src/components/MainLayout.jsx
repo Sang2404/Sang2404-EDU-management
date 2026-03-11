@@ -14,6 +14,7 @@ import {
   BarChartOutlined
 } from '@ant-design/icons';
 import { useNavigate, Outlet, useLocation } from 'react-router-dom';
+import NotificationBell from './NotificationBell';
 
 const { Header, Sider, Content } = Layout;
 const { Title } = Typography;
@@ -29,9 +30,7 @@ const MainLayout = () => {
   let user = null;
   try {
     user = JSON.parse(localStorage.getItem('user'));
-    console.log('Current user:', user);
   } catch (e) {
-    console.error('Error parsing user from localstorage', e);
     localStorage.removeItem('user');
   }
 
@@ -92,12 +91,6 @@ const MainLayout = () => {
         hidden: user.role !== 'ADMIN',
       },
       {
-        key: '/admin/student-enrollment',
-        icon: <TeamOutlined />,
-        label: 'Gán sinh viên',
-        hidden: user.role !== 'ADMIN',
-      },
-      {
         key: '/admin/grade-approval',
         icon: <FileTextOutlined />,
         label: 'Duyệt bảng điểm',
@@ -117,21 +110,15 @@ const MainLayout = () => {
       },
       // Lecturer menu items
       {
-        key: '/lecturer/my-sections',
-        icon: <BookOutlined />,
-        label: 'Lớp giảng dạy',
+        key: '/lecturer/schedule',
+        icon: <CalendarOutlined />,
+        label: 'Lịch dạy',
         hidden: user.role !== 'LECTURER',
       },
       {
         key: '/lecturer/grade-entry',
         icon: <FileTextOutlined />,
         label: 'Nhập điểm',
-        hidden: user.role !== 'LECTURER',
-      },
-      {
-        key: '/lecturer/schedule',
-        icon: <CalendarOutlined />,
-        label: 'Lịch giảng dạy',
         hidden: user.role !== 'LECTURER',
       },
       // Student menu items
@@ -197,7 +184,8 @@ const MainLayout = () => {
       <Layout>
         <Header style={{ padding: 0, background: colorBgContainer, display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingRight: 20 }}>
            <Title level={4} style={{ margin: '0 20px' }}>Quản lý Sinh viên</Title>
-           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+           <div style={{ display: 'flex', alignItems: 'center', gap: 15 }}>
+              <NotificationBell />
               <span>Xin chào, <strong>{user.full_name} ({user.role})</strong></span>
               <Button icon={<LogoutOutlined />} onClick={handleLogout} danger>Đăng xuất</Button>
            </div>

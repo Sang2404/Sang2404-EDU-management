@@ -816,10 +816,14 @@ exports.bulkImportCourseSections = async (req, res) => {
 
 exports.bulkImportSchedules = async (req, res) => {
   try {
-    const { schedules } = req.body;
+    const { schedules, semester, academic_year } = req.body;
     
     if (!schedules || !Array.isArray(schedules) || schedules.length === 0) {
       return res.status(400).json({ error: 'Dữ liệu lịch học không hợp lệ' });
+    }
+    
+    if (!semester || !academic_year) {
+      return res.status(400).json({ error: 'Thiếu thông tin học kỳ và năm học' });
     }
     
     const results = {
@@ -834,12 +838,12 @@ exports.bulkImportSchedules = async (req, res) => {
       
       try {
         // Validate required fields
-        if (!schedule.section_code || !schedule.day_of_week || 
-            !schedule.start_period || !schedule.end_period) {
+        if (!schedule.section_code || !schedule.room || !schedule.day_of_week || 
+            !schedule.period_start || !schedule.period_end || !schedule.week) {
           results.errors.push({
             row: rowNum,
             data: schedule,
-            error: 'Thiếu thông tin bắt buộc (section_code, day_of_week, start_period, end_period)'
+            error: 'Thiếu thông tin bắt buộc (section_code, room, day_of_week, period_start, period_end, week)'
           });
           continue;
         }
@@ -856,8 +860,8 @@ exports.bulkImportSchedules = async (req, res) => {
         }
         
         // Validate periods
-        const startPeriod = parseInt(schedule.start_period);
-        const endPeriod = parseInt(schedule.end_period);
+        const startPeriod = parseInt(schedule.period_start);
+        const endPeriod = parseInt(schedule.period_end);
         
         if (isNaN(startPeriod) || isNaN(endPeriod) || 
             startPeriod < 1 || startPeriod > 15 || 
@@ -879,22 +883,41 @@ exports.bulkImportSchedules = async (req, res) => {
           continue;
         }
         
-        // Find section_id by section_code
+        // Validate week
+        const week = parseInt(schedule.week);
+        if (isNaN(week) || week < 1 || week > 16) {
+          results.errors.push({
+            row: rowNum,
+            data: schedule,
+            error: 'Tuần học không hợp lệ (phải từ 1-16)'
+          });
+          continue;
+        }
+        
+        // Find section_id by section_code with semester and academic_year
         const sectionCheck = await pool.query(
-          'SELECT section_id FROM course_sections WHERE section_code = $1',
-          [schedule.section_code]
+          `SELECT cs.section_id, cs.lecturer_id, u.full_name as lecturer_name
+           FROM course_sections cs
+           JOIN lecturers l ON cs.lecturer_id = l.lecturer_id
+           JOIN users u ON l.user_id = u.user_id
+           WHERE cs.section_code = $1 
+           AND cs.semester = $2 
+           AND cs.academic_year = $3`,
+          [schedule.section_code, semester, academic_year]
         );
         
         if (sectionCheck.rows.length === 0) {
           results.errors.push({
             row: rowNum,
             data: schedule,
-            error: `Lớp học phần ${schedule.section_code} không tồn tại`
+            error: `Lớp học phần ${schedule.section_code} không tồn tại trong ${semester} ${academic_year}`
           });
           continue;
         }
         
         const sectionId = sectionCheck.rows[0].section_id;
+        const lecturerId = sectionCheck.rows[0].lecturer_id;
+        const lecturerName = sectionCheck.rows[0].lecturer_name;
         
         // Check if exact schedule already exists
         const exactCheck = await pool.query(
@@ -902,58 +925,80 @@ exports.bulkImportSchedules = async (req, res) => {
            WHERE section_id = $1 
            AND day_of_week = $2 
            AND start_period = $3
-           AND end_period = $4`,
-          [sectionId, dayOfWeek, startPeriod, endPeriod]
+           AND end_period = $4
+           AND room = $5
+           AND week = $6`,
+          [sectionId, dayOfWeek, startPeriod, endPeriod, schedule.room, week]
         );
         
         if (exactCheck.rows.length > 0) {
-          const existing = exactCheck.rows[0];
-          
-          // Check if data is identical (skip if same)
-          if ((existing.room || null) === (schedule.room || null)) {
-            results.skipped.push({
-              row: rowNum,
-              data: schedule,
-              reason: 'Dữ liệu đã tồn tại và giống hệt (bỏ qua)'
-            });
-            continue;
-          }
-          
-          // Same schedule but different room
-          results.errors.push({
+          results.skipped.push({
             row: rowNum,
             data: schedule,
-            error: `Trùng dữ liệu: Lịch học đã tồn tại với phòng khác: ${existing.room || 'Chưa xác định'}`
+            reason: 'Dữ liệu đã tồn tại và giống hệt (bỏ qua)'
           });
           continue;
         }
         
-        // Check for schedule conflicts (overlapping periods)
-        const conflictCheck = await pool.query(
-          `SELECT schedule_id FROM schedules 
-           WHERE section_id = $1 
-           AND day_of_week = $2 
+        // Check for room conflict (same room, day, week, overlapping periods)
+        const roomConflictCheck = await pool.query(
+          `SELECT cs.section_code, s.subject_name
+           FROM schedules sch
+           JOIN course_sections cs ON sch.section_id = cs.section_id
+           JOIN subjects s ON cs.subject_id = s.subject_id
+           WHERE sch.room = $1 
+           AND sch.day_of_week = $2 
+           AND sch.week = $3
            AND (
-             (start_period <= $3 AND end_period > $3) OR
-             (start_period < $4 AND end_period >= $4) OR
-             (start_period >= $3 AND end_period <= $4)
+             (sch.start_period <= $4 AND sch.end_period > $4) OR
+             (sch.start_period < $5 AND sch.end_period >= $5) OR
+             (sch.start_period >= $4 AND sch.end_period <= $5)
            )`,
-          [sectionId, dayOfWeek, startPeriod, endPeriod]
+          [schedule.room, dayOfWeek, week, startPeriod, endPeriod]
         );
         
-        if (conflictCheck.rows.length > 0) {
+        if (roomConflictCheck.rows.length > 0) {
+          const conflict = roomConflictCheck.rows[0];
           results.errors.push({
             row: rowNum,
             data: schedule,
-            error: 'Trùng lịch học (cùng lớp, cùng thứ, tiết bị chồng lấn)'
+            error: `Xung đột phòng học: Phòng ${schedule.room} đã có lớp ${conflict.section_code} (${conflict.subject_name})`
+          });
+          continue;
+        }
+        
+        // Check for lecturer conflict (same lecturer, day, week, overlapping periods)
+        const lecturerConflictCheck = await pool.query(
+          `SELECT cs.section_code, s.subject_name, sch.room
+           FROM schedules sch
+           JOIN course_sections cs ON sch.section_id = cs.section_id
+           JOIN subjects s ON cs.subject_id = s.subject_id
+           WHERE cs.lecturer_id = $1 
+           AND sch.day_of_week = $2 
+           AND sch.week = $3
+           AND (
+             (sch.start_period <= $4 AND sch.end_period > $4) OR
+             (sch.start_period < $5 AND sch.end_period >= $5) OR
+             (sch.start_period >= $4 AND sch.end_period <= $5)
+           )`,
+          [lecturerId, dayOfWeek, week, startPeriod, endPeriod]
+        );
+        
+        if (lecturerConflictCheck.rows.length > 0) {
+          const conflict = lecturerConflictCheck.rows[0];
+          const dayNames = { 2: 'Thứ 2', 3: 'Thứ 3', 4: 'Thứ 4', 5: 'Thứ 5', 6: 'Thứ 6', 7: 'Thứ 7', 8: 'Chủ nhật' };
+          results.errors.push({
+            row: rowNum,
+            data: schedule,
+            error: `Xung đột giảng viên: ${lecturerName} đang dạy ${conflict.subject_name} (${conflict.section_code}) tại phòng ${conflict.room} vào ${dayNames[dayOfWeek]} tuần ${week}`
           });
           continue;
         }
         
         // Insert schedule
         const insertQuery = `
-          INSERT INTO schedules (section_id, day_of_week, start_period, end_period, room)
-          VALUES ($1, $2, $3, $4, $5)
+          INSERT INTO schedules (section_id, day_of_week, start_period, end_period, room, week)
+          VALUES ($1, $2, $3, $4, $5, $6)
           RETURNING *
         `;
         
@@ -962,12 +1007,16 @@ exports.bulkImportSchedules = async (req, res) => {
           dayOfWeek,
           startPeriod,
           endPeriod,
-          schedule.room || null
+          schedule.room,
+          week
         ]);
         
         results.success.push({
           row: rowNum,
-          data: scheduleResult.rows[0]
+          data: {
+            ...scheduleResult.rows[0],
+            section_code: schedule.section_code
+          }
         });
         
       } catch (error) {
@@ -1087,6 +1136,165 @@ exports.bulkImportFaculties = async (req, res) => {
     
   } catch (error) {
     console.error('Error bulk importing faculties:', error);
+    res.status(500).json({ error: error.message });
+  }
+};
+
+exports.bulkApproveGrades = async (req, res) => {
+  try {
+    const { section_ids } = req.body;
+    
+    if (!section_ids || !Array.isArray(section_ids) || section_ids.length === 0) {
+      return res.status(400).json({ error: 'section_ids phải là một mảng không rỗng' });
+    }
+    
+    const results = {
+      success: [],
+      errors: []
+    };
+    
+    for (const sectionId of section_ids) {
+      try {
+        // Check if section exists
+        const sectionCheck = await pool.query(
+          'SELECT section_id FROM course_sections WHERE section_id = $1',
+          [sectionId]
+        );
+        
+        if (sectionCheck.rows.length === 0) {
+          results.errors.push({
+            section_id: sectionId,
+            error: 'Lớp học phần không tồn tại'
+          });
+          continue;
+        }
+        
+        // Check if grades are in SUBMITTED status
+        const submittedGrades = await pool.query(
+          `SELECT COUNT(*) as count FROM grades 
+           WHERE section_id = $1 AND status = 'SUBMITTED'`,
+          [sectionId]
+        );
+        const submittedCount = parseInt(submittedGrades.rows[0].count);
+        
+        if (submittedCount === 0) {
+          results.errors.push({
+            section_id: sectionId,
+            error: 'Không có bảng điểm nào ở trạng thái chờ duyệt'
+          });
+          continue;
+        }
+        
+        // Update all SUBMITTED grades to APPROVED
+        const updateResult = await pool.query(
+          `UPDATE grades 
+           SET status = 'APPROVED' 
+           WHERE section_id = $1 AND status = 'SUBMITTED'
+           RETURNING grade_id`,
+          [sectionId]
+        );
+        
+        results.success.push({
+          section_id: sectionId,
+          grades_approved: updateResult.rows.length
+        });
+        
+      } catch (error) {
+        results.errors.push({
+          section_id: sectionId,
+          error: error.message
+        });
+      }
+    }
+    
+    res.json({
+      message: `Phê duyệt ${results.success.length} bảng điểm thành công, ${results.errors.length} lỗi`,
+      results
+    });
+  } catch (error) {
+    console.error('Error bulk approving grades:', error);
+    res.status(500).json({ error: error.message });
+  }
+};
+
+exports.bulkRejectGrades = async (req, res) => {
+  try {
+    const { section_ids, reason } = req.body;
+    
+    if (!section_ids || !Array.isArray(section_ids) || section_ids.length === 0) {
+      return res.status(400).json({ error: 'section_ids phải là một mảng không rỗng' });
+    }
+    
+    if (!reason || reason.trim().length === 0) {
+      return res.status(400).json({ error: 'reason là trường bắt buộc' });
+    }
+    
+    const results = {
+      success: [],
+      errors: []
+    };
+    
+    for (const sectionId of section_ids) {
+      try {
+        // Check if section exists
+        const sectionCheck = await pool.query(
+          'SELECT section_id FROM course_sections WHERE section_id = $1',
+          [sectionId]
+        );
+        
+        if (sectionCheck.rows.length === 0) {
+          results.errors.push({
+            section_id: sectionId,
+            error: 'Lớp học phần không tồn tại'
+          });
+          continue;
+        }
+        
+        // Check if grades are in SUBMITTED status
+        const submittedGrades = await pool.query(
+          `SELECT COUNT(*) as count FROM grades 
+           WHERE section_id = $1 AND status = 'SUBMITTED'`,
+          [sectionId]
+        );
+        const submittedCount = parseInt(submittedGrades.rows[0].count);
+        
+        if (submittedCount === 0) {
+          results.errors.push({
+            section_id: sectionId,
+            error: 'Không có bảng điểm nào ở trạng thái chờ duyệt'
+          });
+          continue;
+        }
+        
+        // Update all SUBMITTED grades back to DRAFT
+        const updateResult = await pool.query(
+          `UPDATE grades 
+           SET status = 'DRAFT' 
+           WHERE section_id = $1 AND status = 'SUBMITTED'
+           RETURNING grade_id`,
+          [sectionId]
+        );
+        
+        results.success.push({
+          section_id: sectionId,
+          grades_rejected: updateResult.rows.length
+        });
+        
+      } catch (error) {
+        results.errors.push({
+          section_id: sectionId,
+          error: error.message
+        });
+      }
+    }
+    
+    res.json({
+      message: `Từ chối ${results.success.length} bảng điểm thành công, ${results.errors.length} lỗi`,
+      results,
+      reason: reason.trim()
+    });
+  } catch (error) {
+    console.error('Error bulk rejecting grades:', error);
     res.status(500).json({ error: error.message });
   }
 };

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { 
   Card, 
   Table, 
@@ -39,12 +39,12 @@ const MySectionsPage = () => {
 
   // Get current user (lecturer)
   const user = JSON.parse(localStorage.getItem('user'));
-  const lecturerId = user?.user_id;
+  const lecturerId = user?.username; // Sử dụng username thay vì user_id
 
   useEffect(() => {
     if (lecturerId) {
       fetchSections();
-      // fetchStatistics(); // API not implemented yet
+      fetchStatistics();
     }
   }, [lecturerId, semester, academicYear]);
 
@@ -66,20 +66,20 @@ const MySectionsPage = () => {
     }
   };
 
-  // const fetchStatistics = async () => {
-  //   try {
-  //     let url = `/lecturers/${lecturerId}/statistics`;
-  //     const params = [];
-  //     if (semester) params.push(`semester=${semester}`);
-  //     if (academicYear) params.push(`academic_year=${academicYear}`);
-  //     if (params.length > 0) url += '?' + params.join('&');
+  const fetchStatistics = async () => {
+    try {
+      let url = `/lecturers/${lecturerId}/statistics`;
+      const params = [];
+      if (semester) params.push(`semester=${semester}`);
+      if (academicYear) params.push(`academic_year=${academicYear}`);
+      if (params.length > 0) url += '?' + params.join('&');
       
-  //     const response = await axios.get(url);
-  //     setStatistics(response.data);
-  //   } catch (error) {
-  //     console.error('Error fetching statistics:', error);
-  //   }
-  // };
+      const response = await axios.get(url);
+      setStatistics(response.data);
+    } catch (error) {
+      // Silent error for statistics - not critical
+    }
+  };
 
   const handleViewDetails = async (section) => {
     try {
@@ -89,7 +89,8 @@ const MySectionsPage = () => {
       setSchedules(response.data.schedules || []);
       setDetailModalVisible(true);
     } catch (error) {
-      message.error('Không thể tải chi tiết lớp học');
+      const errorMsg = error.response?.data?.error || error.response?.data?.message || 'Không thể tải chi tiết lớp học';
+      message.error(errorMsg);
     }
   };
 
@@ -138,41 +139,14 @@ const MySectionsPage = () => {
       )
     },
     {
-      title: 'Lịch học',
-      key: 'schedules',
-      width: 300,
-      render: (_, record) => (
-        <Space direction="vertical" size="small">
-          {record.schedules && record.schedules.length > 0 ? (
-            record.schedules.map((schedule, index) => (
-              <div key={index}>
-                <Tag color={getDayColor(schedule.day_of_week)}>
-                  {schedule.day_name}
-                </Tag>
-                <span>Tiết {schedule.start_period}-{schedule.end_period}</span>
-                {schedule.room && <span> - Phòng {schedule.room}</span>}
-              </div>
-            ))
-          ) : (
-            <span style={{ color: '#999' }}>Chưa xếp lịch</span>
-          )}
-        </Space>
-      )
-    },
-    {
-      title: 'Thao tác',
-      key: 'action',
-      fixed: 'right',
-      width: 120,
-      render: (_, record) => (
-        <Button 
-          type="link" 
-          icon={<EyeOutlined />}
-          onClick={() => handleViewDetails(record)}
-        >
-          Xem chi tiết
-        </Button>
-      )
+      title: 'Số buổi',
+      key: 'schedule_count',
+      width: 100,
+      align: 'center',
+      render: (_, record) => {
+        const scheduleCount = record.schedules?.length || 0;
+        return <Tag color="blue">{scheduleCount} buổi</Tag>;
+      }
     }
   ];
 
@@ -210,7 +184,7 @@ const MySectionsPage = () => {
         {/* Statistics Cards */}
         {statistics && (
           <>
-            <Col span={8}>
+            <Col span={6}>
               <Card>
                 <Statistic 
                   title="Tổng số lớp" 
@@ -220,7 +194,7 @@ const MySectionsPage = () => {
                 />
               </Card>
             </Col>
-            <Col span={8}>
+            <Col span={6}>
               <Card>
                 <Statistic 
                   title="Tổng số sinh viên" 
@@ -230,7 +204,7 @@ const MySectionsPage = () => {
                 />
               </Card>
             </Col>
-            <Col span={8}>
+            <Col span={6}>
               <Card>
                 <Statistic 
                   title="Sĩ số trung bình" 
@@ -238,6 +212,56 @@ const MySectionsPage = () => {
                   precision={1}
                   prefix={<BarChartOutlined />}
                   valueStyle={{ color: '#722ed1' }}
+                />
+              </Card>
+            </Col>
+            <Col span={6}>
+              <Card>
+                <Statistic 
+                  title="Điểm trung bình" 
+                  value={statistics.statistics?.grade_statistics?.average_grade || 0}
+                  precision={2}
+                  valueStyle={{ color: '#fa8c16' }}
+                />
+              </Card>
+            </Col>
+            <Col span={6}>
+              <Card>
+                <Statistic 
+                  title="Tỷ lệ đậu" 
+                  value={statistics.statistics?.grade_statistics?.pass_rate || 0}
+                  precision={1}
+                  suffix="%"
+                  valueStyle={{ color: '#52c41a' }}
+                />
+              </Card>
+            </Col>
+            <Col span={6}>
+              <Card>
+                <Statistic 
+                  title="Tỷ lệ rớt" 
+                  value={statistics.statistics?.grade_statistics?.fail_rate || 0}
+                  precision={1}
+                  suffix="%"
+                  valueStyle={{ color: '#ff4d4f' }}
+                />
+              </Card>
+            </Col>
+            <Col span={6}>
+              <Card>
+                <Statistic 
+                  title="Số sinh viên đậu" 
+                  value={statistics.statistics?.grade_statistics?.passed || 0}
+                  valueStyle={{ color: '#52c41a' }}
+                />
+              </Card>
+            </Col>
+            <Col span={6}>
+              <Card>
+                <Statistic 
+                  title="Số sinh viên rớt" 
+                  value={statistics.statistics?.grade_statistics?.failed || 0}
+                  valueStyle={{ color: '#ff4d4f' }}
                 />
               </Card>
             </Col>

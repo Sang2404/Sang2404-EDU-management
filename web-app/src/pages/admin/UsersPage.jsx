@@ -1,9 +1,10 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Table, Tag, Select, Card, Button, Modal, Form, Input, message, Space, Popconfirm, Switch, Upload } from 'antd';
 import { PlusOutlined, EditOutlined, DeleteOutlined, LockOutlined, UnlockOutlined, UploadOutlined, DownloadOutlined } from '@ant-design/icons';
 import * as XLSX from 'xlsx';
 import api from '../../config/axios';
 import { showImportResults } from '../../utils/importResultModal.jsx';
+import UserDetailModal from '../../components/UserDetailModal';
 
 const UsersPage = () => {
   const [users, setUsers] = useState([]);
@@ -19,6 +20,8 @@ const UsersPage = () => {
   });
   const [importModalVisible, setImportModalVisible] = useState(false);
   const [importLoading, setImportLoading] = useState(false);
+  const [viewingUser, setViewingUser] = useState(null);
+  const [isViewModalVisible, setIsViewModalVisible] = useState(false);
 
   const fetchUsers = async (page = 1, role = '') => {
     setLoading(true);
@@ -34,7 +37,6 @@ const UsersPage = () => {
       setUsers(users);
       setPagination(prev => ({ ...prev, current: page, total: totalUsers }));
     } catch (error) {
-      console.error('Failed to fetch users:', error);
       message.error('Không thể tải danh sách người dùng');
     } finally {
       setLoading(false);
@@ -69,6 +71,14 @@ const UsersPage = () => {
     setIsModalVisible(true);
   };
 
+  // View user details
+  const handleView = (user) => {
+    setViewingUser(user);
+    setIsViewModalVisible(true);
+  };
+
+
+
   // Handle form submission (Add or Edit)
   const handleSubmit = async (values) => {
     try {
@@ -85,7 +95,6 @@ const UsersPage = () => {
       form.resetFields();
       fetchUsers(pagination.current, roleFilter);
     } catch (error) {
-      console.error('Failed to save user:', error);
       message.error(error.response?.data?.error || 'Không thể lưu người dùng');
     }
   };
@@ -97,7 +106,6 @@ const UsersPage = () => {
       message.success('Xóa người dùng thành công');
       fetchUsers(pagination.current, roleFilter);
     } catch (error) {
-      console.error('Failed to delete user:', error);
       message.error(error.response?.data?.error || 'Không thể xóa người dùng');
     }
   };
@@ -111,7 +119,6 @@ const UsersPage = () => {
       message.success(user.is_active ? 'Đã khóa tài khoản' : 'Đã mở khóa tài khoản');
       fetchUsers(pagination.current, roleFilter);
     } catch (error) {
-      console.error('Failed to toggle user status:', error);
       message.error('Không thể thay đổi trạng thái tài khoản');
     }
   };
@@ -186,7 +193,6 @@ const UsersPage = () => {
         fetchUsers(pagination.current, roleFilter);
         
       } catch (error) {
-        console.error('Error importing Excel:', error);
         message.error(error.response?.data?.error || 'Không thể nhập dữ liệu từ Excel');
       } finally {
         setImportLoading(false);
@@ -221,11 +227,12 @@ const UsersPage = () => {
       render: (role) => {
         let color = 'geekblue';
         let text = role;
-        if (role === 'ADMIN') { color = 'red'; text = 'Quản trị viên'; }
-        if (role === 'LECTURER') { color = 'green'; text = 'Giảng viên'; }
-        if (role === 'STUDENT') { color = 'blue'; text = 'Sinh viên'; }
+        let ariaLabel = role;
+        if (role === 'ADMIN') { color = 'red'; text = 'Quản trị viên'; ariaLabel = 'Vai trò: Quản trị viên'; }
+        if (role === 'LECTURER') { color = 'green'; text = 'Giảng viên'; ariaLabel = 'Vai trò: Giảng viên'; }
+        if (role === 'STUDENT') { color = 'blue'; text = 'Sinh viên'; ariaLabel = 'Vai trò: Sinh viên'; }
         return (
-          <Tag color={color} key={role}>
+          <Tag color={color} key={role} aria-label={ariaLabel}>
             {text}
           </Tag>
         );
@@ -236,7 +243,7 @@ const UsersPage = () => {
       dataIndex: 'is_active',
       key: 'is_active',
       render: (active) => (
-        <Tag color={active ? 'success' : 'default'}>
+        <Tag color={active ? 'success' : 'default'} aria-label={active ? 'Trạng thái: Hoạt động' : 'Trạng thái: Đã khóa'}>
           {active ? 'Hoạt động' : 'Đã khóa'}
         </Tag>
       )
@@ -251,40 +258,58 @@ const UsersPage = () => {
       title: 'Thao tác',
       key: 'action',
       fixed: 'right',
-      width: 200,
+      width: 250,
       render: (_, record) => (
-        <Space size="small">
+        <Space size="small" role="group" aria-label={`Thao tác cho người dùng ${record.full_name}`}>
+          <Button
+            type="link"
+            onClick={() => handleView(record)}
+            aria-label={`Xem thông tin người dùng ${record.full_name}`}
+          >
+            Xem
+          </Button>
           <Button
             type="link"
             icon={<EditOutlined />}
             onClick={() => handleEdit(record)}
+            aria-label={`Chỉnh sửa người dùng ${record.full_name}`}
           >
             Sửa
           </Button>
           <Popconfirm
             title={record.is_active ? "Khóa tài khoản này?" : "Mở khóa tài khoản này?"}
+            description={
+              record.is_active 
+                ? `Bạn sắp khóa tài khoản của ${record.full_name} (${record.email}). Người dùng này sẽ không thể đăng nhập.`
+                : `Bạn sắp mở khóa tài khoản của ${record.full_name} (${record.email}). Người dùng này sẽ có thể đăng nhập lại.`
+            }
             onConfirm={() => handleToggleActive(record)}
-            okText="Có"
-            cancelText="Không"
+            okText="Xác nhận"
+            cancelText="Hủy"
+            okButtonProps={{ danger: record.is_active }}
           >
             <Button
               type="link"
               icon={record.is_active ? <LockOutlined /> : <UnlockOutlined />}
               danger={record.is_active}
+              aria-label={record.is_active ? `Khóa tài khoản ${record.full_name}` : `Mở khóa tài khoản ${record.full_name}`}
             >
               {record.is_active ? 'Khóa' : 'Mở'}
             </Button>
           </Popconfirm>
           <Popconfirm
-            title="Bạn có chắc muốn xóa người dùng này?"
+            title="Xóa người dùng này?"
+            description={`Bạn sắp xóa tài khoản của ${record.full_name} (${record.email}). Hành động này không thể hoàn tác.`}
             onConfirm={() => handleDelete(record.user_id)}
-            okText="Có"
-            cancelText="Không"
+            okText="Xóa"
+            cancelText="Hủy"
+            okButtonProps={{ danger: true }}
           >
             <Button
               type="link"
               danger
               icon={<DeleteOutlined />}
+              aria-label={`Xóa người dùng ${record.full_name}`}
             >
               Xóa
             </Button>
@@ -304,6 +329,7 @@ const UsersPage = () => {
               defaultValue="" 
               style={{ width: 150 }} 
               onChange={(value) => setRoleFilter(value)}
+              aria-label="Lọc theo vai trò"
               options={[
                 { value: '', label: 'Tất cả vai trò' },
                 { value: 'STUDENT', label: 'Sinh viên' },
@@ -314,6 +340,7 @@ const UsersPage = () => {
             <Button 
               icon={<UploadOutlined />}
               onClick={() => setImportModalVisible(true)}
+              aria-label="Nhập dữ liệu người dùng từ file Excel"
             >
               Nhập Excel
             </Button>
@@ -321,6 +348,7 @@ const UsersPage = () => {
               type="primary" 
               icon={<PlusOutlined />}
               onClick={handleAdd}
+              aria-label="Thêm người dùng mới"
             >
               Thêm người dùng
             </Button>
@@ -338,6 +366,14 @@ const UsersPage = () => {
         />
       </Card>
 
+      {/* User Detail Modal */}
+      <UserDetailModal
+        user={viewingUser}
+        visible={isViewModalVisible}
+        onClose={() => setIsViewModalVisible(false)}
+        onEdit={handleEdit}
+      />
+
       {/* Add/Edit Modal */}
       <Modal
         title={editingUser ? 'Chỉnh sửa người dùng' : 'Thêm người dùng mới'}
@@ -348,6 +384,7 @@ const UsersPage = () => {
         }}
         footer={null}
         width={600}
+        aria-labelledby="user-modal-title"
       >
         <Form
           form={form}
@@ -359,35 +396,73 @@ const UsersPage = () => {
             label="Email"
             rules={[
               { required: true, message: 'Vui lòng nhập email' },
-              { type: 'email', message: 'Email không hợp lệ' }
+              {
+                pattern: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
+                message: 'Email không hợp lệ (ví dụ: example@gmail.com)'
+              }
             ]}
           >
-            <Input placeholder="example@gmail.com" disabled={!!editingUser} />
+            <Input 
+              placeholder="example@gmail.com" 
+              disabled={!!editingUser}
+              type="email"
+              aria-label="Địa chỉ email"
+            />
           </Form.Item>
 
           <Form.Item
             name="username"
             label="Mã người dùng (MSSV/Mã GV)"
-            rules={[{ required: true, message: 'Vui lòng nhập mã người dùng' }]}
+            rules={[
+              { required: true, message: 'Vui lòng nhập mã người dùng' },
+              {
+                min: 3,
+                message: 'Mã người dùng phải có ít nhất 3 ký tự'
+              },
+              {
+                max: 50,
+                message: 'Mã người dùng không được vượt quá 50 ký tự'
+              }
+            ]}
           >
-            <Input placeholder="212480201 hoặc GV001" />
+            <Input 
+              placeholder="212480201 hoặc GV001"
+              disabled={!!editingUser}
+              aria-label="Mã người dùng"
+            />
           </Form.Item>
 
           <Form.Item
             name="full_name"
             label="Họ và tên"
-            rules={[{ required: true, message: 'Vui lòng nhập họ và tên' }]}
+            rules={[
+              { required: true, message: 'Vui lòng nhập họ và tên' },
+              {
+                min: 2,
+                message: 'Họ và tên phải có ít nhất 2 ký tự'
+              },
+              {
+                max: 100,
+                message: 'Họ và tên không được vượt quá 100 ký tự'
+              },
+              {
+                pattern: /^[a-zA-ZÀ-ỿ\s]+$/,
+                message: 'Họ và tên chỉ được chứa chữ cái và khoảng trắng'
+              }
+            ]}
           >
-            <Input placeholder="Nguyễn Văn A" />
+            <Input placeholder="Nguyễn Văn A" aria-label="Họ và tên" />
           </Form.Item>
 
           <Form.Item
             name="role"
             label="Vai trò"
-            rules={[{ required: true, message: 'Vui lòng chọn vai trò' }]}
+            rules={[{ required: true, message: 'Vui lòng chọn vai trò' }]
+            }
           >
             <Select
               placeholder="Chọn vai trò"
+              aria-label="Chọn vai trò người dùng"
               options={[
                 { value: 'STUDENT', label: 'Sinh viên' },
                 { value: 'LECTURER', label: 'Giảng viên' },
@@ -402,19 +477,23 @@ const UsersPage = () => {
               label="Trạng thái"
               valuePropName="checked"
             >
-              <Switch checkedChildren="Hoạt động" unCheckedChildren="Đã khóa" />
+              <Switch 
+                checkedChildren="Hoạt động" 
+                unCheckedChildren="Đã khóa"
+                aria-label="Trạng thái tài khoản"
+              />
             </Form.Item>
           )}
 
           <Form.Item>
             <Space>
-              <Button type="primary" htmlType="submit">
+              <Button type="primary" htmlType="submit" aria-label={editingUser ? 'Cập nhật người dùng' : 'Thêm người dùng mới'}>
                 {editingUser ? 'Cập nhật' : 'Thêm mới'}
               </Button>
               <Button onClick={() => {
                 setIsModalVisible(false);
                 form.resetFields();
-              }}>
+              }} aria-label="Hủy bỏ">
                 Hủy
               </Button>
             </Space>
@@ -429,6 +508,7 @@ const UsersPage = () => {
         onCancel={() => setImportModalVisible(false)}
         footer={null}
         width={600}
+        aria-labelledby="import-modal-title"
       >
         <Space direction="vertical" style={{ width: '100%' }} size="large">
           <div>
@@ -436,6 +516,7 @@ const UsersPage = () => {
             <Button 
               icon={<DownloadOutlined />} 
               onClick={handleDownloadTemplate}
+              aria-label="Tải xuống file mẫu nhập người dùng"
             >
               Tải file mẫu
             </Button>
@@ -463,6 +544,7 @@ const UsersPage = () => {
                 icon={<UploadOutlined />} 
                 loading={importLoading}
                 type="primary"
+                aria-label="Chọn file Excel để nhập người dùng"
               >
                 {importLoading ? 'Đang xử lý...' : 'Chọn file Excel'}
               </Button>

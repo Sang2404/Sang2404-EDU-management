@@ -3,7 +3,7 @@ import {
   Table, Button, Modal, Form, Input, Card, message, Space, 
   Popconfirm, Select, InputNumber, Switch, Tag, Upload 
 } from 'antd';
-import { PlusOutlined, EditOutlined, DeleteOutlined, LockOutlined, UnlockOutlined, UploadOutlined, DownloadOutlined } from '@ant-design/icons';
+import { PlusOutlined, EditOutlined, DeleteOutlined, UploadOutlined, DownloadOutlined } from '@ant-design/icons';
 import * as XLSX from 'xlsx';
 import api from '../../config/axios';
 import { showImportResults } from '../../utils/importResultModal.jsx';
@@ -23,6 +23,12 @@ const CourseSectionsPage = () => {
   });
   const [importModalVisible, setImportModalVisible] = useState(false);
   const [importLoading, setImportLoading] = useState(false);
+  const [studentsModalVisible, setStudentsModalVisible] = useState(false);
+  const [selectedSection, setSelectedSection] = useState(null);
+  const [sectionStudents, setSectionStudents] = useState([]);
+  const [allStudents, setAllStudents] = useState([]);
+  const [studentsLoading, setStudentsLoading] = useState(false);
+  const [assignForm] = Form.useForm();
 
   // Fetch data
   useEffect(() => {
@@ -54,7 +60,7 @@ const CourseSectionsPage = () => {
       const res = await api.get('/academic/subjects');
       setSubjects(res.data);
     } catch (error) {
-      console.error(error);
+      // Silent error for subjects - not critical
     }
   };
 
@@ -63,7 +69,68 @@ const CourseSectionsPage = () => {
       const res = await api.get('/users', { params: { role: 'LECTURER' } });
       setLecturers(res.data.users || []);
     } catch (error) {
+      // Silent error for lecturers - not critical
+    }
+  };
+
+  // Fetch students in a section
+  const fetchSectionStudents = async (sectionId) => {
+    setStudentsLoading(true);
+    try {
+      const res = await api.get(`/academic/course-sections/${sectionId}/students`);
+      setSectionStudents(res.data);
+    } catch (error) {
+      const errorMsg = error.response?.data?.error || error.response?.data?.message || 'Không thể tải danh sách sinh viên';
+      message.error(errorMsg);
+    } finally {
+      setStudentsLoading(false);
+    }
+  };
+
+  // Fetch all students for assignment
+  const fetchAllStudents = async () => {
+    try {
+      const res = await api.get('/users', { params: { role: 'STUDENT' } });
+      setAllStudents(res.data.users || []);
+    } catch (error) {
+      // Silent error for all students - not critical
+    }
+  };
+
+  // Show students modal
+  const handleShowStudents = (section) => {
+    setSelectedSection(section);
+    setStudentsModalVisible(true);
+    fetchSectionStudents(section.section_id);
+    fetchAllStudents();
+  };
+
+  // Assign student to section
+  const handleAssignStudent = async (values) => {
+    try {
+      await api.post(`/academic/course-sections/${selectedSection.section_id}/students`, {
+        student_id: values.student_id
+      });
+      message.success('Gán sinh viên thành công');
+      assignForm.resetFields();
+      fetchSectionStudents(selectedSection.section_id);
+      fetchSections(); // Refresh to update enrolled count
+    } catch (error) {
       console.error(error);
+      message.error(error.response?.data?.error || 'Không thể gán sinh viên');
+    }
+  };
+
+  // Remove student from section
+  const handleRemoveStudent = async (studentId) => {
+    try {
+      await api.delete(`/academic/course-sections/${selectedSection.section_id}/students/${studentId}`);
+      message.success('Đã xóa sinh viên khỏi lớp');
+      fetchSectionStudents(selectedSection.section_id);
+      fetchSections(); // Refresh to update enrolled count
+    } catch (error) {
+      console.error(error);
+      message.error(error.response?.data?.error || 'Không thể xóa sinh viên');
     }
   };
 
@@ -78,8 +145,7 @@ const CourseSectionsPage = () => {
     form.resetFields();
     // Set default values
     form.setFieldsValue({
-      max_capacity: 40,
-      is_locked: false
+      max_capacity: 40
     });
     setIsModalOpen(true);
   };
@@ -92,15 +158,14 @@ const CourseSectionsPage = () => {
       semester: record.semester,
       academic_year: record.academic_year,
       section_code: record.section_code,
-      max_capacity: record.max_capacity,
-      room_default: record.room_default,
-      is_locked: record.is_locked
+      max_capacity: record.max_capacity
     });
     setIsModalOpen(true);
   };
 
   const handleSubmit = async (values) => {
     try {
+      console.log('Submitting course section:', values);
       if (editingSection) {
         await api.put(`/academic/course-sections/${editingSection.section_id}`, values);
         message.success('Cập nhật lớp học phần thành công');
@@ -112,7 +177,7 @@ const CourseSectionsPage = () => {
       form.resetFields();
       fetchSections();
     } catch (error) {
-      console.error(error);
+      console.error('Error details:', error.response?.data);
       message.error(error.response?.data?.error || 'Thao tác thất bại');
     }
   };
@@ -128,19 +193,6 @@ const CourseSectionsPage = () => {
     }
   };
 
-  const handleToggleLock = async (section) => {
-    try {
-      await api.put(`/academic/course-sections/${section.section_id}`, {
-        is_locked: !section.is_locked
-      });
-      message.success(section.is_locked ? 'Đã mở khóa lớp' : 'Đã khóa lớp');
-      fetchSections();
-    } catch (error) {
-      console.error(error);
-      message.error('Không thể thay đổi trạng thái khóa');
-    }
-  };
-
   // Download Excel template
   const handleDownloadTemplate = () => {
     const template = [
@@ -150,9 +202,7 @@ const CourseSectionsPage = () => {
         semester: 'HK1',
         academic_year: '2024-2025',
         section_code: 'TIN01-01',
-        max_capacity: 40,
-        room_default: 'A101',
-        is_locked: false
+        max_capacity: 40
       },
       {
         subject_id: 'TOAN01',
@@ -160,9 +210,7 @@ const CourseSectionsPage = () => {
         semester: 'HK1',
         academic_year: '2024-2025',
         section_code: 'TOAN01-01',
-        max_capacity: 50,
-        room_default: 'B202',
-        is_locked: false
+        max_capacity: 50
       }
     ];
 
@@ -176,9 +224,7 @@ const CourseSectionsPage = () => {
       { wch: 10 }, // semester
       { wch: 15 }, // academic_year
       { wch: 15 }, // section_code
-      { wch: 12 }, // max_capacity
-      { wch: 12 }, // room_default
-      { wch: 10 }  // is_locked
+      { wch: 12 }  // max_capacity
     ];
     
     XLSX.writeFile(wb, 'course_sections_template.xlsx');
@@ -238,6 +284,15 @@ const CourseSectionsPage = () => {
       key: 'section_code',
       width: 120,
       fixed: 'left',
+      render: (text, record) => (
+        <Button 
+          type="link" 
+          onClick={() => handleShowStudents(record)}
+          style={{ padding: 0, fontWeight: 500 }}
+        >
+          {text}
+        </Button>
+      ),
     },
     {
       title: 'Môn học',
@@ -264,12 +319,6 @@ const CourseSectionsPage = () => {
       width: 100,
     },
     {
-      title: 'Phòng',
-      dataIndex: 'room_default',
-      key: 'room_default',
-      width: 80,
-    },
-    {
       title: 'Sĩ số',
       key: 'capacity',
       width: 100,
@@ -279,17 +328,7 @@ const CourseSectionsPage = () => {
         </span>
       ),
     },
-    {
-      title: 'Trạng thái',
-      dataIndex: 'is_locked',
-      key: 'is_locked',
-      width: 100,
-      render: (locked) => (
-        <Tag color={locked ? 'red' : 'green'}>
-          {locked ? 'Đã khóa' : 'Mở'}
-        </Tag>
-      ),
-    },
+
     {
       title: 'Thao tác',
       key: 'action',
@@ -305,22 +344,7 @@ const CourseSectionsPage = () => {
           >
             Sửa
           </Button>
-          <Popconfirm
-            title={record.is_locked ? "Mở khóa lớp này?" : "Khóa lớp này?"}
-            description={record.is_locked ? "Sinh viên có thể đăng ký sau khi mở" : "Sinh viên không thể đăng ký"}
-            onConfirm={() => handleToggleLock(record)}
-            okText="Có"
-            cancelText="Không"
-          >
-            <Button
-              type="link"
-              size="small"
-              icon={record.is_locked ? <UnlockOutlined /> : <LockOutlined />}
-              danger={!record.is_locked}
-            >
-              {record.is_locked ? 'Mở' : 'Khóa'}
-            </Button>
-          </Popconfirm>
+
           <Popconfirm
             title="Xóa lớp học phần này?"
             description="Hành động này không thể hoàn tác"
@@ -485,37 +509,15 @@ const CourseSectionsPage = () => {
             <Input placeholder="VD: WEB-01, DB-02" />
           </Form.Item>
 
-          <Space style={{ width: '100%' }} size="large">
-            <Form.Item
-              name="max_capacity"
-              label="Sĩ số tối đa"
-              rules={[
-                { required: true, message: 'Vui lòng nhập sĩ số' },
-                { type: 'number', min: 1, message: 'Sĩ số phải lớn hơn 0' }
-              ]}
-              style={{ width: 150 }}
-            >
-              <InputNumber placeholder="40" style={{ width: '100%' }} />
-            </Form.Item>
-
-            <Form.Item
-              name="room_default"
-              label="Phòng học"
-              style={{ width: 150 }}
-            >
-              <Input placeholder="VD: A101" />
-            </Form.Item>
-          </Space>
-
           <Form.Item
-            name="is_locked"
-            label="Trạng thái"
-            valuePropName="checked"
+            name="max_capacity"
+            label="Sĩ số tối đa"
+            rules={[
+              { required: true, message: 'Vui lòng nhập sĩ số' },
+              { type: 'number', min: 1, message: 'Sĩ số phải lớn hơn 0' }
+            ]}
           >
-            <Switch
-              checkedChildren="Đã khóa"
-              unCheckedChildren="Mở"
-            />
+            <InputNumber placeholder="40" style={{ width: '100%' }} />
           </Form.Item>
 
           <Form.Item style={{ marginBottom: 0, textAlign: 'right' }}>
@@ -562,8 +564,6 @@ const CourseSectionsPage = () => {
               <li><strong>academic_year</strong>: Năm học VD: 2024-2025 (bắt buộc)</li>
               <li><strong>section_code</strong>: Mã lớp (bắt buộc, không trùng)</li>
               <li><strong>max_capacity</strong>: Sĩ số tối đa (bắt buộc)</li>
-              <li><strong>room_default</strong>: Phòng học (tùy chọn)</li>
-              <li><strong>is_locked</strong>: true/false (mặc định: false)</li>
             </ul>
           </div>
           
@@ -583,6 +583,121 @@ const CourseSectionsPage = () => {
               </Button>
             </Upload>
           </div>
+        </Space>
+      </Modal>
+
+      {/* Students Modal */}
+      <Modal
+        title={
+          <Space>
+            <span>Danh sách sinh viên</span>
+            <Tag color="blue">{selectedSection?.section_code}</Tag>
+            <Tag>{selectedSection?.subject_name}</Tag>
+          </Space>
+        }
+        open={studentsModalVisible}
+        onCancel={() => {
+          setStudentsModalVisible(false);
+          setSelectedSection(null);
+          assignForm.resetFields();
+        }}
+        footer={null}
+        width={900}
+      >
+        <Space direction="vertical" style={{ width: '100%' }} size="large">
+          {/* Assign Student Form */}
+          <Card size="small" title="Gán sinh viên vào lớp">
+            <Form
+              form={assignForm}
+              layout="inline"
+              onFinish={handleAssignStudent}
+            >
+              <Form.Item
+                name="student_id"
+                rules={[{ required: true, message: 'Vui lòng chọn sinh viên' }]}
+                style={{ width: 400 }}
+              >
+                <Select
+                  placeholder="Chọn sinh viên"
+                  showSearch
+                  filterOption={(input, option) =>
+                    (option?.label ?? '').toLowerCase().includes(input.toLowerCase())
+                  }
+                  options={allStudents
+                    .filter(s => !sectionStudents.find(ss => ss.student_id === s.username))
+                    .map(s => ({
+                      value: s.username,
+                      label: `${s.username} - ${s.full_name}`
+                    }))}
+                />
+              </Form.Item>
+              <Form.Item>
+                <Button type="primary" htmlType="submit" icon={<PlusOutlined />}>
+                  Gán sinh viên
+                </Button>
+              </Form.Item>
+            </Form>
+          </Card>
+
+          {/* Students List */}
+          <Card 
+            size="small" 
+            title={`Sinh viên trong lớp (${sectionStudents.length}/${selectedSection?.max_capacity})`}
+          >
+            <Table
+              dataSource={sectionStudents}
+              rowKey="student_id"
+              loading={studentsLoading}
+              pagination={{ pageSize: 10 }}
+              columns={[
+                {
+                  title: 'MSSV',
+                  dataIndex: 'student_id',
+                  key: 'student_id',
+                  width: 150,
+                },
+                {
+                  title: 'Họ và tên',
+                  dataIndex: 'full_name',
+                  key: 'full_name',
+                },
+                {
+                  title: 'Email',
+                  dataIndex: 'email',
+                  key: 'email',
+                },
+                {
+                  title: 'Lớp',
+                  dataIndex: 'class_name',
+                  key: 'class_name',
+                  width: 120,
+                },
+                {
+                  title: 'Thao tác',
+                  key: 'action',
+                  width: 100,
+                  render: (_, record) => (
+                    <Popconfirm
+                      title="Xóa sinh viên khỏi lớp?"
+                      description="Sinh viên sẽ không còn trong lớp này"
+                      onConfirm={() => handleRemoveStudent(record.student_id)}
+                      okText="Xóa"
+                      cancelText="Hủy"
+                    >
+                      <Button
+                        type="link"
+                        size="small"
+                        danger
+                        icon={<DeleteOutlined />}
+                      >
+                        Xóa
+                      </Button>
+                    </Popconfirm>
+                  ),
+                },
+              ]}
+            />
+          </Card>
         </Space>
       </Modal>
     </>

@@ -61,7 +61,7 @@ const StatisticsPage = () => {
       setFaculties(facultiesRes.data);
       setSubjects(subjectsRes.data);
     } catch (error) {
-      console.error('Error fetching filter options:', error);
+      // Silent error for filter options - not critical
     }
   };
 
@@ -92,7 +92,7 @@ const StatisticsPage = () => {
       const response = await axios.get(url);
       setStudentStats(response.data);
     } catch (error) {
-      console.error('Error fetching student statistics:', error);
+      // Silent error - statistics are optional
     }
   };
 
@@ -108,7 +108,7 @@ const StatisticsPage = () => {
       const response = await axios.get(url);
       setCourseStats(response.data);
     } catch (error) {
-      console.error('Error fetching course statistics:', error);
+      // Silent error - statistics are optional
     }
   };
 
@@ -124,7 +124,7 @@ const StatisticsPage = () => {
       const response = await axios.get(url);
       setGradeStats(response.data);
     } catch (error) {
-      console.error('Error fetching grade statistics:', error);
+      // Silent error - statistics are optional
     }
   };
 
@@ -139,7 +139,7 @@ const StatisticsPage = () => {
       const response = await axios.get(url);
       setRequestStats(response.data);
     } catch (error) {
-      console.error('Error fetching request statistics:', error);
+      // Silent error - statistics are optional
     }
   };
 
@@ -150,7 +150,7 @@ const StatisticsPage = () => {
         const response = await axios.get(`/academic/faculties/${facultyId}/majors`);
         setMajors(response.data);
       } catch (error) {
-        console.error('Error fetching majors:', error);
+        // Silent error - majors are optional
       }
     } else {
       setMajors([]);

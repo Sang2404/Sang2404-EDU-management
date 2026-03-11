@@ -97,6 +97,54 @@ exports.getOverview = async (req, res) => {
     const currentSemester = currentSemesterResult.rows[0] || { semester: null, academic_year: null, count: 0 };
     sections.current_semester = parseInt(currentSemester.count);
     
+    // Get top students by GPA
+    const topStudentsQuery = `
+      SELECT 
+        s.student_id,
+        u.full_name,
+        s.gpa_accumulated as gpa,
+        c.class_name
+      FROM students s
+      JOIN users u ON s.user_id = u.user_id
+      LEFT JOIN classes c ON s.class_id = c.class_id
+      WHERE s.status = 'STUDYING'
+      ORDER BY s.gpa_accumulated DESC
+      LIMIT 5
+    `;
+    const topStudentsResult = await pool.query(topStudentsQuery);
+    const topStudents = topStudentsResult.rows.map(row => ({
+      student_id: row.student_id,
+      full_name: row.full_name,
+      gpa: parseFloat(row.gpa),
+      class_name: row.class_name
+    }));
+    
+    // Get top subjects by enrollment
+    const topSubjectsQuery = `
+      SELECT 
+        sub.subject_id,
+        sub.subject_name,
+        COUNT(DISTINCT cs.section_id) as sections,
+        COUNT(DISTINCT ss.student_id) as total_students,
+        ROUND(AVG(g.total_10), 2) as average_grade
+      FROM subjects sub
+      LEFT JOIN course_sections cs ON sub.subject_id = cs.subject_id
+      LEFT JOIN section_students ss ON cs.section_id = ss.section_id
+      LEFT JOIN grades g ON ss.student_id = g.student_id AND cs.section_id = g.section_id AND g.status = 'APPROVED'
+      GROUP BY sub.subject_id, sub.subject_name
+      HAVING COUNT(DISTINCT ss.student_id) > 0
+      ORDER BY total_students DESC
+      LIMIT 5
+    `;
+    const topSubjectsResult = await pool.query(topSubjectsQuery);
+    const topSubjects = topSubjectsResult.rows.map(row => ({
+      subject_id: row.subject_id,
+      subject_name: row.subject_name,
+      sections: parseInt(row.sections),
+      total_students: parseInt(row.total_students),
+      average_grade: parseFloat(row.average_grade) || 0
+    }));
+    
     res.json({
       users: {
         total: parseInt(users.total),
@@ -127,7 +175,9 @@ exports.getOverview = async (req, res) => {
       current_semester: {
         semester: currentSemester.semester,
         academic_year: currentSemester.academic_year
-      }
+      },
+      top_students: topStudents,
+      top_subjects: topSubjects
     });
   } catch (error) {
     console.error('Error getting overview:', error);

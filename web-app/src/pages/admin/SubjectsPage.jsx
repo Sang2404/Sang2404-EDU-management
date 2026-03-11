@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Table, Button, Modal, Form, Input, Card, message, Space, Popconfirm, InputNumber, Upload } from 'antd';
 import { PlusOutlined, EditOutlined, DeleteOutlined, UploadOutlined, DownloadOutlined } from '@ant-design/icons';
 import * as XLSX from 'xlsx';
@@ -14,6 +14,11 @@ const SubjectsPage = () => {
   const [importModalVisible, setImportModalVisible] = useState(false);
   const [importLoading, setImportLoading] = useState(false);
 
+  // Fetch subjects on component mount
+  useEffect(() => {
+    fetchSubjects();
+  }, []);
+
   // --- API HELPER ---
   const fetchSubjects = async () => {
     setLoading(true);
@@ -21,16 +26,11 @@ const SubjectsPage = () => {
       const res = await api.get('/academic/subjects');
       setSubjects(res.data);
     } catch (error) {
-      console.error(error);
       message.error('Lỗi khi tải danh sách Môn học');
     } finally {
       setLoading(false);
     }
   };
-
-  useEffect(() => {
-    fetchSubjects();
-  }, []);
 
   const handleCreateOrUpdate = async (values) => {
     try {
@@ -48,7 +48,6 @@ const SubjectsPage = () => {
       setEditingSubject(null);
       fetchSubjects();
     } catch (error) {
-      console.error(error);
       message.error(editingSubject ? 'Cập nhật thất bại' : 'Tạo mới thất bại');
     }
   };
@@ -59,7 +58,6 @@ const SubjectsPage = () => {
       message.success('Xóa Môn học thành công');
       fetchSubjects();
     } catch (error) {
-      console.error(error);
       message.error('Xóa thất bại (Có thể đang có Lớp học phần sử dụng môn này)');
     }
   };
@@ -149,7 +147,6 @@ const SubjectsPage = () => {
         fetchSubjects();
         
       } catch (error) {
-        console.error('Error importing Excel:', error);
         message.error(error.response?.data?.error || 'Không thể nhập dữ liệu từ Excel');
       } finally {
         setImportLoading(false);
@@ -191,16 +188,37 @@ const SubjectsPage = () => {
       key: 'action',
       width: '15%',
       render: (_, record) => (
-        <Space>
-          <Button icon={<EditOutlined />} onClick={() => openEditModal(record)} />
+        <Space role="group" aria-label={`Thao tác cho môn học ${record.subject_name}`}>
+          <Button 
+            icon={<EditOutlined />} 
+            onClick={() => openEditModal(record)}
+            aria-label={`Chỉnh sửa môn học ${record.subject_name}`}
+          />
           <Popconfirm
             title="Xóa môn học này?"
-            description="Hành động này không thể hoàn tác"
+            description={
+              <div>
+                <p style={{ marginBottom: 8 }}>
+                  <strong>Mã môn học:</strong> {record.subject_id}
+                </p>
+                <p style={{ marginBottom: 8 }}>
+                  <strong>Tên môn học:</strong> {record.subject_name}
+                </p>
+                <p style={{ color: '#ff4d4f', marginBottom: 0 }}>
+                  ⚠️ Hành động này không thể hoàn tác
+                </p>
+              </div>
+            }
             onConfirm={() => handleDelete(record.subject_id)}
             okText="Xóa"
             cancelText="Hủy"
+            okButtonProps={{ danger: true }}
           >
-            <Button danger icon={<DeleteOutlined />} />
+            <Button 
+              danger 
+              icon={<DeleteOutlined />}
+              aria-label={`Xóa môn học ${record.subject_name}`}
+            />
           </Popconfirm>
         </Space>
       ),
@@ -215,10 +233,16 @@ const SubjectsPage = () => {
           <Button 
             icon={<UploadOutlined />}
             onClick={() => setImportModalVisible(true)}
+            aria-label="Nhập dữ liệu môn học từ file Excel"
           >
             Nhập Excel
           </Button>
-          <Button type="primary" icon={<PlusOutlined />} onClick={openCreateModal}>
+          <Button 
+            type="primary" 
+            icon={<PlusOutlined />} 
+            onClick={openCreateModal}
+            aria-label="Thêm môn học mới"
+          >
             Thêm Môn học
           </Button>
         </Space>
@@ -238,6 +262,7 @@ const SubjectsPage = () => {
         open={isModalOpen}
         onCancel={handleCancelModal}
         footer={null}
+        aria-labelledby="subject-modal-title"
       >
         <Form
           form={form}
@@ -252,15 +277,26 @@ const SubjectsPage = () => {
               { max: 20, message: 'Tối đa 20 ký tự' }
             ]}
           >
-            <Input disabled={!!editingSubject} placeholder="VD: TIN01, GT1" />
+            <Input 
+              disabled={!!editingSubject} 
+              placeholder="VD: TIN01, GT1"
+              aria-label="Mã môn học"
+            />
           </Form.Item>
 
           <Form.Item
             name="subject_name"
             label="Tên Môn học"
-            rules={[{ required: true, message: 'Vui lòng nhập Tên môn học!' }]}
+            rules={[
+              { required: true, message: 'Vui lòng nhập Tên môn học!' },
+              { min: 2, message: 'Tên môn học phải có ít nhất 2 ký tự' },
+              { max: 100, message: 'Tên môn học không được vượt quá 100 ký tự' }
+            ]}
           >
-            <Input placeholder="VD: Nhập môn Lập trình" />
+            <Input 
+              placeholder="VD: Nhập môn Lập trình"
+              aria-label="Tên môn học"
+            />
           </Form.Item>
 
           <Form.Item
@@ -268,24 +304,47 @@ const SubjectsPage = () => {
             label="Số tín chỉ"
             rules={[
               { required: true, message: 'Vui lòng nhập số tín chỉ!' },
-              { type: 'number', min: 1, max: 20, message: 'Số tín chỉ không hợp lệ' }
+              { 
+                type: 'number', 
+                min: 1, 
+                max: 20, 
+                message: 'Số tín chỉ phải từ 1 đến 20' 
+              }
             ]}
           >
-            <InputNumber style={{ width: '100%' }} />
+            <InputNumber 
+              style={{ width: '100%' }} 
+              min={1}
+              max={20}
+              placeholder="Nhập số tín chỉ (1-20)"
+              aria-label="Số tín chỉ"
+            />
           </Form.Item>
 
           <Form.Item
             name="description"
             label="Mô tả / Đề cương"
           >
-            <Input.TextArea rows={4} />
+            <Input.TextArea 
+              rows={4}
+              aria-label="Mô tả môn học"
+            />
           </Form.Item>
 
           <Form.Item style={{ textAlign: 'right', marginTop: 16 }}>
-            <Button onClick={handleCancelModal} style={{ marginRight: 8 }}>
+            <Button 
+              onClick={handleCancelModal} 
+              style={{ marginRight: 8 }}
+              aria-label="Hủy bỏ"
+            >
               Hủy
             </Button>
-            <Button type="primary" htmlType="submit" loading={loading}>
+            <Button 
+              type="primary" 
+              htmlType="submit" 
+              loading={loading}
+              aria-label={editingSubject ? "Cập nhật môn học" : "Tạo môn học mới"}
+            >
               {editingSubject ? "Cập nhật" : "Tạo mới"}
             </Button>
           </Form.Item>
@@ -299,6 +358,7 @@ const SubjectsPage = () => {
         onCancel={() => setImportModalVisible(false)}
         footer={null}
         width={600}
+        aria-labelledby="import-subjects-modal-title"
       >
         <Space direction="vertical" style={{ width: '100%' }} size="large">
           <div>
@@ -306,6 +366,7 @@ const SubjectsPage = () => {
             <Button 
               icon={<DownloadOutlined />} 
               onClick={handleDownloadTemplate}
+              aria-label="Tải xuống file mẫu nhập môn học"
             >
               Tải file mẫu
             </Button>
@@ -332,6 +393,7 @@ const SubjectsPage = () => {
                 icon={<UploadOutlined />} 
                 loading={importLoading}
                 type="primary"
+                aria-label="Chọn file Excel để nhập môn học"
               >
                 {importLoading ? 'Đang xử lý...' : 'Chọn file Excel'}
               </Button>

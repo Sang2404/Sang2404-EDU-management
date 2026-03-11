@@ -164,6 +164,21 @@ CREATE TABLE notifications (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+-- 16. Bảng Điểm danh (Attendance Tracking)
+CREATE TABLE attendances (
+    attendance_id SERIAL PRIMARY KEY,
+    section_id INT REFERENCES course_sections(section_id) ON DELETE CASCADE,
+    student_id VARCHAR(20) REFERENCES students(student_id) ON DELETE CASCADE,
+    schedule_id INT REFERENCES schedules(schedule_id) ON DELETE SET NULL,
+    week INT CHECK (week BETWEEN 1 AND 16), -- Tuần học (1-16)
+    day_of_week INT CHECK (day_of_week BETWEEN 2 AND 8), -- Thứ 2-8
+    status VARCHAR(20) DEFAULT 'PRESENT', -- PRESENT, ABSENT, LATE, EXCUSED
+    notes TEXT, -- Ghi chú (lý do vắng, v.v.)
+    recorded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    recorded_by VARCHAR(20) REFERENCES lecturers(lecturer_id), -- GV ghi danh
+    CONSTRAINT unique_attendance UNIQUE (section_id, student_id, week, day_of_week)
+);
+
 -- PHẦN 5: DỮ LIỆU MẪU ĐỂ TEST GOOGLE LOGIN (SEED DATA)
 -- 1. Tạo Admin
 INSERT INTO users (email, username, role, full_name) 

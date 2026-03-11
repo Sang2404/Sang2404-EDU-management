@@ -5,6 +5,8 @@ const adminController = require('../controllers/adminController');
 router.get('/grades/pending', adminController.getPendingGrades);
 router.post('/sections/:sectionId/grades/approve', adminController.approveGrades);
 router.post('/sections/:sectionId/grades/reject', adminController.rejectGrades);
+router.post('/grades/bulk-approve', adminController.bulkApproveGrades);
+router.post('/grades/bulk-reject', adminController.bulkRejectGrades);
 
 module.exports = router;
 

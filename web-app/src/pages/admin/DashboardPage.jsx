@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, Row, Col, Statistic, Table, Spin, message, Typography } from 'antd';
 import { 
   UserOutlined, 
@@ -39,8 +39,8 @@ const DashboardPage = () => {
       setGradeStats(gradeRes.data);
       
     } catch (error) {
-      console.error('Error fetching dashboard data:', error);
-      message.error('Không thể tải dữ liệu thống kê');
+      const errorMsg = error.response?.data?.error || error.response?.data?.message || 'Không thể tải dữ liệu thống kê';
+      message.error(errorMsg);
     } finally {
       setLoading(false);
     }

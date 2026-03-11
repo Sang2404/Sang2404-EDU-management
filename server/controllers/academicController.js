@@ -146,43 +146,47 @@ exports.deleteSubject = async (req, res) => {
 // --- COURSE SECTIONS ---
 exports.createCourseSection = async (req, res) => {
   try {
-    // Extract request body parameters
-    const { subject_id, teacher_id, semester, year, max_students, section_code } = req.body;
+    // Extract request body parameters - accept both lecturer_id and teacher_id
+    const { subject_id, teacher_id, lecturer_id, semester, year, academic_year, max_students, max_capacity, section_code, room_default } = req.body;
+    
+    console.log('DEBUG: Creating course section with:', { subject_id, teacher_id, lecturer_id, semester, year, academic_year, max_students, max_capacity, section_code });
+    
+    // Use lecturer_id if provided, otherwise use teacher_id
+    const finalLecturerId = lecturer_id || teacher_id;
+    const finalAcademicYear = academic_year || year;
+    const finalMaxCapacity = max_capacity || max_students;
+    
+    console.log('DEBUG: Final values:', { finalLecturerId, finalAcademicYear, finalMaxCapacity });
     
     // Validate required fields
     if (!subject_id) {
       return res.status(400).json({ error: 'subject_id is required' });
     }
-    if (!teacher_id) {
-      return res.status(400).json({ error: 'teacher_id is required' });
+    if (!finalLecturerId) {
+      return res.status(400).json({ error: 'lecturer_id is required' });
     }
     if (!semester) {
       return res.status(400).json({ error: 'semester is required' });
     }
-    if (!year) {
-      return res.status(400).json({ error: 'year is required' });
+    if (!finalAcademicYear) {
+      return res.status(400).json({ error: 'academic_year is required' });
     }
-    if (max_students === undefined || max_students === null) {
-      return res.status(400).json({ error: 'max_students is required' });
+    if (finalMaxCapacity === undefined || finalMaxCapacity === null) {
+      return res.status(400).json({ error: 'max_capacity is required' });
     }
     if (!section_code) {
       return res.status(400).json({ error: 'section_code is required' });
     }
     
     // Validate data type and constraints
-    if (typeof max_students !== 'number' || max_students <= 0) {
-      return res.status(400).json({ error: 'max_students must be a positive integer' });
+    if (typeof finalMaxCapacity !== 'number' || finalMaxCapacity <= 0) {
+      return res.status(400).json({ error: 'max_capacity must be a positive integer' });
     }
     
     // Validate section_code is not empty or whitespace
     if (typeof section_code === 'string' && section_code.trim().length === 0) {
       return res.status(400).json({ error: 'section_code cannot be empty' });
     }
-    
-    // Map API parameters to database column names
-    const lecturer_id = teacher_id;
-    const academic_year = year;
-    const max_capacity = max_students;
     
     // Validate subject exists
     const subjectCheck = await pool.query(
@@ -196,7 +200,7 @@ exports.createCourseSection = async (req, res) => {
     // Validate teacher exists
     const teacherCheck = await pool.query(
       'SELECT lecturer_id FROM lecturers WHERE lecturer_id = $1',
-      [lecturer_id]
+      [finalLecturerId]
     );
     if (teacherCheck.rows.length === 0) {
       return res.status(400).json({ error: 'Teacher does not exist' });
@@ -214,10 +218,10 @@ exports.createCourseSection = async (req, res) => {
     // Insert new course section
     const insertResult = await pool.query(
       `INSERT INTO course_sections 
-       (subject_id, lecturer_id, semester, academic_year, max_capacity, section_code) 
-       VALUES ($1, $2, $3, $4, $5, $6) 
-       RETURNING section_id, subject_id, lecturer_id, semester, academic_year, max_capacity, section_code`,
-      [subject_id, lecturer_id, semester, academic_year, max_capacity, section_code]
+       (subject_id, lecturer_id, semester, academic_year, max_capacity, section_code, room_default) 
+       VALUES ($1, $2, $3, $4, $5, $6, $7) 
+       RETURNING section_id, subject_id, lecturer_id, semester, academic_year, max_capacity, section_code, room_default`,
+      [subject_id, finalLecturerId, semester, finalAcademicYear, finalMaxCapacity, section_code, room_default || null]
     );
     
     const createdSection = insertResult.rows[0];
@@ -235,8 +239,9 @@ exports.createCourseSection = async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('Error creating course section:', error);
-    res.status(500).json({ error: error.message });
+    console.error('Error creating course section:', error.message);
+    console.error('Stack:', error.stack);
+    res.status(500).json({ error: error.message || 'Internal server error' });
   }
 };
 
@@ -321,7 +326,8 @@ exports.getCourseSectionById = async (req, res) => {
 exports.updateCourseSection = async (req, res) => {
   try {
     const { id } = req.params;
-    const { subject_id, teacher_id, semester, year, max_students, section_code, room_default, is_locked } = req.body;
+    // Accept both teacher_id and lecturer_id for compatibility
+    const { subject_id, teacher_id, lecturer_id: lecturerId, semester, year, academic_year: academicYear, max_students, max_capacity: maxCapacity, section_code, room_default, is_locked } = req.body;
     
     // Check if course section exists
     const existsCheck = await pool.query(
@@ -332,40 +338,40 @@ exports.updateCourseSection = async (req, res) => {
       return res.status(404).json({ error: 'Course section not found' });
     }
     
+    // Use provided values or fallback to alternatives
+    const finalLecturerId = lecturerId || teacher_id;
+    const finalAcademicYear = academicYear || year;
+    const finalMaxCapacity = maxCapacity || max_students;
+    
     // Validate required fields
     if (!subject_id) {
       return res.status(400).json({ error: 'subject_id is required' });
     }
-    if (!teacher_id) {
-      return res.status(400).json({ error: 'teacher_id is required' });
+    if (!finalLecturerId) {
+      return res.status(400).json({ error: 'lecturer_id is required' });
     }
     if (!semester) {
       return res.status(400).json({ error: 'semester is required' });
     }
-    if (!year) {
-      return res.status(400).json({ error: 'year is required' });
+    if (!finalAcademicYear) {
+      return res.status(400).json({ error: 'academic_year is required' });
     }
-    if (max_students === undefined || max_students === null) {
-      return res.status(400).json({ error: 'max_students is required' });
+    if (finalMaxCapacity === undefined || finalMaxCapacity === null) {
+      return res.status(400).json({ error: 'max_capacity is required' });
     }
     if (!section_code) {
       return res.status(400).json({ error: 'section_code is required' });
     }
     
     // Validate data type and constraints
-    if (typeof max_students !== 'number' || max_students <= 0) {
-      return res.status(400).json({ error: 'max_students must be a positive integer' });
+    if (typeof finalMaxCapacity !== 'number' || finalMaxCapacity <= 0) {
+      return res.status(400).json({ error: 'max_capacity must be a positive integer' });
     }
     
     // Validate section_code is not empty or whitespace
     if (typeof section_code === 'string' && section_code.trim().length === 0) {
       return res.status(400).json({ error: 'section_code cannot be empty' });
     }
-    
-    // Map API parameters to database column names
-    const lecturer_id = teacher_id;
-    const academic_year = year;
-    const max_capacity = max_students;
     
     // Validate subject exists
     const subjectCheck = await pool.query(
@@ -379,7 +385,7 @@ exports.updateCourseSection = async (req, res) => {
     // Validate teacher exists
     const teacherCheck = await pool.query(
       'SELECT lecturer_id FROM lecturers WHERE lecturer_id = $1',
-      [lecturer_id]
+      [finalLecturerId]
     );
     if (teacherCheck.rows.length === 0) {
       return res.status(400).json({ error: 'Teacher does not exist' });
@@ -407,7 +413,7 @@ exports.updateCourseSection = async (req, res) => {
            is_locked = $8
        WHERE section_id = $9
        RETURNING section_id, subject_id, lecturer_id, semester, academic_year, max_capacity, section_code, room_default, is_locked`,
-      [subject_id, lecturer_id, semester, academic_year, max_capacity, section_code, room_default || null, is_locked || false, id]
+      [subject_id, finalLecturerId, semester, finalAcademicYear, finalMaxCapacity, section_code, room_default || null, is_locked || false, id]
     );
     
     const updatedSection = updateResult.rows[0];
@@ -484,9 +490,51 @@ const getDayName = (day_of_week) => {
   return dayNames[day_of_week] || '';
 };
 
+exports.getAllSchedules = async (req, res) => {
+  try {
+    const { semester, academic_year, day_of_week } = req.query;
+    
+    const query = `
+      SELECT 
+        s.schedule_id,
+        s.section_id,
+        s.day_of_week,
+        s.start_period as period_start,
+        s.end_period as period_end,
+        s.room,
+        s.week,
+        cs.section_code,
+        sub.subject_name,
+        u.full_name as lecturer_name,
+        cs.semester,
+        cs.academic_year
+      FROM schedules s
+      JOIN course_sections cs ON s.section_id = cs.section_id
+      JOIN subjects sub ON cs.subject_id = sub.subject_id
+      JOIN lecturers l ON cs.lecturer_id = l.lecturer_id
+      JOIN users u ON l.user_id = u.user_id
+      WHERE ($1::text IS NULL OR cs.semester = $1)
+        AND ($2::text IS NULL OR cs.academic_year = $2)
+        AND ($3::integer IS NULL OR s.day_of_week = $3)
+      ORDER BY s.week, s.day_of_week, s.start_period, s.room
+    `;
+    
+    const result = await pool.query(query, [
+      semester || null, 
+      academic_year || null,
+      day_of_week ? parseInt(day_of_week) : null
+    ]);
+    
+    res.json(result.rows);
+  } catch (error) {
+    console.error('Error getting all schedules:', error);
+    res.status(500).json({ error: error.message });
+  }
+};
+
 exports.createSchedule = async (req, res) => {
   try {
-    const { section_id, day_of_week, start_period, end_period, room } = req.body;
+    const { section_id, day_of_week, start_period, end_period, room, week, override_conflicts } = req.body;
     
     // Validate required fields
     if (!section_id) {
@@ -500,6 +548,9 @@ exports.createSchedule = async (req, res) => {
     }
     if (!end_period) {
       return res.status(400).json({ error: 'end_period is required' });
+    }
+    if (!week) {
+      return res.status(400).json({ error: 'week is required' });
     }
     
     // Validate data types and ranges
@@ -526,69 +577,118 @@ exports.createSchedule = async (req, res) => {
     }
     
     const section = sectionCheck.rows[0];
+    const conflicts = [];
     
     // Check for room conflict
     if (room) {
       const roomConflict = await pool.query(
-        `SELECT s.schedule_id, s.room, s.start_period, s.end_period
+        `SELECT s.schedule_id, s.room, s.start_period, s.end_period, cs.section_code, sub.subject_name
          FROM schedules s
          JOIN course_sections cs ON s.section_id = cs.section_id
+         JOIN subjects sub ON cs.subject_id = sub.subject_id
          WHERE s.room = $1
            AND s.day_of_week = $2
-           AND cs.semester = $3
-           AND cs.academic_year = $4
+           AND s.week = $3
+           AND cs.semester = $4
+           AND cs.academic_year = $5
            AND (
-             (s.start_period <= $5 AND s.end_period > $5) OR
-             (s.start_period < $6 AND s.end_period >= $6) OR
-             (s.start_period >= $5 AND s.end_period <= $6)
+             (s.start_period <= $6 AND s.end_period > $6) OR
+             (s.start_period < $7 AND s.end_period >= $7) OR
+             (s.start_period >= $6 AND s.end_period <= $7)
            )`,
-        [room, day_of_week, section.semester, section.academic_year, start_period, end_period]
+        [room, day_of_week, week, section.semester, section.academic_year, start_period, end_period]
       );
       
       if (roomConflict.rows.length > 0) {
-        return res.status(409).json({ 
-          error: `Room ${room} is already booked on ${getDayName(day_of_week)} from period ${roomConflict.rows[0].start_period} to ${roomConflict.rows[0].end_period}` 
+        conflicts.push({
+          type: 'room',
+          message: `Phòng ${room} đã có lớp ${roomConflict.rows[0].section_code} (${roomConflict.rows[0].subject_name}) vào ${getDayName(day_of_week)} tuần ${week} từ tiết ${roomConflict.rows[0].start_period} đến ${roomConflict.rows[0].end_period}`
         });
       }
     }
     
     // Check for lecturer conflict
     const lecturerConflict = await pool.query(
-      `SELECT s.schedule_id, s.start_period, s.end_period, sub.subject_name
+      `SELECT s.schedule_id, s.start_period, s.end_period, sub.subject_name, s.room, s.week, cs.section_code
        FROM schedules s
        JOIN course_sections cs ON s.section_id = cs.section_id
        JOIN subjects sub ON cs.subject_id = sub.subject_id
        WHERE cs.lecturer_id = $1
          AND s.day_of_week = $2
-         AND cs.semester = $3
-         AND cs.academic_year = $4
+         AND s.week = $3
+         AND cs.semester = $4
+         AND cs.academic_year = $5
          AND (
-           (s.start_period <= $5 AND s.end_period > $5) OR
-           (s.start_period < $6 AND s.end_period >= $6) OR
-           (s.start_period >= $5 AND s.end_period <= $6)
+           (s.start_period <= $6 AND s.end_period > $6) OR
+           (s.start_period < $7 AND s.end_period >= $7) OR
+           (s.start_period >= $6 AND s.end_period <= $7)
          )`,
-      [section.lecturer_id, day_of_week, section.semester, section.academic_year, start_period, end_period]
+      [section.lecturer_id, day_of_week, week, section.semester, section.academic_year, start_period, end_period]
     );
     
     if (lecturerConflict.rows.length > 0) {
+      conflicts.push({
+        type: 'lecturer',
+        message: `Giảng viên đang dạy lớp ${lecturerConflict.rows[0].section_code} (${lecturerConflict.rows[0].subject_name}) tại phòng ${lecturerConflict.rows[0].room} vào ${getDayName(day_of_week)} tuần ${week} từ tiết ${lecturerConflict.rows[0].start_period} đến ${lecturerConflict.rows[0].end_period}`
+      });
+    }
+    
+    // Check for student conflicts
+    const studentConflict = await pool.query(
+      `SELECT DISTINCT ss.student_id, u.full_name, s.schedule_id, s.start_period, s.end_period, 
+              sub.subject_name, s.room, s.week, cs.section_code
+       FROM section_students ss
+       JOIN schedules s ON s.section_id = $1
+       JOIN course_sections cs ON s.section_id = cs.section_id
+       JOIN subjects sub ON cs.subject_id = sub.subject_id
+       JOIN users u ON ss.student_id = u.user_id
+       WHERE ss.student_id IN (
+         SELECT ss2.student_id
+         FROM section_students ss2
+         JOIN schedules s2 ON s2.section_id = ss2.section_id
+         WHERE s2.day_of_week = $2
+           AND s2.week = $3
+           AND (
+             (s2.start_period <= $4 AND s2.end_period > $4) OR
+             (s2.start_period < $5 AND s2.end_period >= $5) OR
+             (s2.start_period >= $4 AND s2.end_period <= $5)
+           )
+       )
+       LIMIT 5`,
+      [section_id, day_of_week, week, start_period, end_period]
+    );
+    
+    if (studentConflict.rows.length > 0) {
+      const conflictCount = studentConflict.rows.length;
+      conflicts.push({
+        type: 'student',
+        message: `${conflictCount} sinh viên có xung đột lịch học vào ${getDayName(day_of_week)} tuần ${week} từ tiết ${start_period} đến ${end_period}`
+      });
+    }
+    
+    // If there are conflicts and override is not set, return warning
+    if (conflicts.length > 0 && !override_conflicts) {
       return res.status(409).json({ 
-        error: `Lecturer is already teaching ${lecturerConflict.rows[0].subject_name} on ${getDayName(day_of_week)} from period ${lecturerConflict.rows[0].start_period} to ${lecturerConflict.rows[0].end_period}` 
+        error: 'Phát hiện xung đột lịch học',
+        conflicts: conflicts,
+        warning: 'Vui lòng kiểm tra các xung đột trên. Nếu muốn bỏ qua, hãy gửi lại yêu cầu với override_conflicts: true'
       });
     }
     
     // Insert schedule
     const insertResult = await pool.query(
-      `INSERT INTO schedules (section_id, day_of_week, start_period, end_period, room)
-       VALUES ($1, $2, $3, $4, $5)
-       RETURNING schedule_id, section_id, day_of_week, start_period, end_period, room`,
-      [section_id, day_of_week, start_period, end_period, room || null]
+      `INSERT INTO schedules (section_id, day_of_week, start_period, end_period, room, week)
+       VALUES ($1, $2, $3, $4, $5, $6)
+       RETURNING schedule_id, section_id, day_of_week, start_period, end_period, room, week`,
+      [section_id, day_of_week, start_period, end_period, room || null, week]
     );
     
     const createdSchedule = insertResult.rows[0];
     
     res.status(201).json({
       message: 'Tạo lịch học thành công',
-      data: createdSchedule
+      data: createdSchedule,
+      conflicts_overridden: conflicts.length > 0 ? conflicts : null
     });
   } catch (error) {
     console.error('Error creating schedule:', error);
@@ -654,7 +754,7 @@ exports.getScheduleById = async (req, res) => {
 exports.updateSchedule = async (req, res) => {
   try {
     const { id } = req.params;
-    const { section_id, day_of_week, start_period, end_period, room } = req.body;
+    const { section_id, day_of_week, start_period, end_period, room, week, override_conflicts } = req.body;
     
     // Check if schedule exists
     const existsCheck = await pool.query(
@@ -678,6 +778,9 @@ exports.updateSchedule = async (req, res) => {
     if (!end_period) {
       return res.status(400).json({ error: 'end_period is required' });
     }
+    if (!week) {
+      return res.status(400).json({ error: 'week is required' });
+    }
     
     // Validate data types and ranges
     if (typeof day_of_week !== 'number' || day_of_week < 2 || day_of_week > 8) {
@@ -692,6 +795,9 @@ exports.updateSchedule = async (req, res) => {
     if (start_period >= end_period) {
       return res.status(400).json({ error: 'start_period must be less than end_period' });
     }
+    if (typeof week !== 'number' || week < 1 || week > 16) {
+      return res.status(400).json({ error: 'week must be between 1 and 16' });
+    }
     
     // Check if course section exists
     const sectionCheck = await pool.query(
@@ -703,70 +809,120 @@ exports.updateSchedule = async (req, res) => {
     }
     
     const section = sectionCheck.rows[0];
+    const conflicts = [];
     
     // Check for room conflict (excluding current schedule)
     if (room) {
       const roomConflict = await pool.query(
-        `SELECT s.schedule_id, s.room, s.start_period, s.end_period
+        `SELECT s.schedule_id, s.room, s.start_period, s.end_period, cs.section_code, sub.subject_name
          FROM schedules s
          JOIN course_sections cs ON s.section_id = cs.section_id
+         JOIN subjects sub ON cs.subject_id = sub.subject_id
          WHERE s.room = $1
            AND s.day_of_week = $2
-           AND cs.semester = $3
-           AND cs.academic_year = $4
-           AND s.schedule_id != $5
+           AND s.week = $3
+           AND cs.semester = $4
+           AND cs.academic_year = $5
+           AND s.schedule_id != $6
            AND (
-             (s.start_period <= $6 AND s.end_period > $6) OR
-             (s.start_period < $7 AND s.end_period >= $7) OR
-             (s.start_period >= $6 AND s.end_period <= $7)
+             (s.start_period <= $7 AND s.end_period > $7) OR
+             (s.start_period < $8 AND s.end_period >= $8) OR
+             (s.start_period >= $7 AND s.end_period <= $8)
            )`,
-        [room, day_of_week, section.semester, section.academic_year, id, start_period, end_period]
+        [room, day_of_week, week, section.semester, section.academic_year, id, start_period, end_period]
       );
       
       if (roomConflict.rows.length > 0) {
-        return res.status(409).json({ 
-          error: `Room ${room} is already booked on ${getDayName(day_of_week)} from period ${roomConflict.rows[0].start_period} to ${roomConflict.rows[0].end_period}` 
+        conflicts.push({
+          type: 'room',
+          message: `Phòng ${room} đã có lớp ${roomConflict.rows[0].section_code} (${roomConflict.rows[0].subject_name}) vào ${getDayName(day_of_week)} tuần ${week} từ tiết ${roomConflict.rows[0].start_period} đến ${roomConflict.rows[0].end_period}`
         });
       }
     }
     
-    // Check for lecturer conflict (excluding current schedule)
+    // Check for lecturer conflict (excluding current schedule, same week)
     const lecturerConflict = await pool.query(
-      `SELECT s.schedule_id, s.start_period, s.end_period, sub.subject_name
+      `SELECT s.schedule_id, s.start_period, s.end_period, sub.subject_name, s.room, s.week, cs.section_code
        FROM schedules s
        JOIN course_sections cs ON s.section_id = cs.section_id
        JOIN subjects sub ON cs.subject_id = sub.subject_id
        WHERE cs.lecturer_id = $1
          AND s.day_of_week = $2
-         AND cs.semester = $3
-         AND cs.academic_year = $4
-         AND s.schedule_id != $5
+         AND s.week = $3
+         AND cs.semester = $4
+         AND cs.academic_year = $5
+         AND s.schedule_id != $6
          AND (
-           (s.start_period <= $6 AND s.end_period > $6) OR
-           (s.start_period < $7 AND s.end_period >= $7) OR
-           (s.start_period >= $6 AND s.end_period <= $7)
+           (s.start_period <= $7 AND s.end_period > $7) OR
+           (s.start_period < $8 AND s.end_period >= $8) OR
+           (s.start_period >= $7 AND s.end_period <= $8)
          )`,
-      [section.lecturer_id, day_of_week, section.semester, section.academic_year, id, start_period, end_period]
+      [section.lecturer_id, day_of_week, week, section.semester, section.academic_year, id, start_period, end_period]
     );
     
     if (lecturerConflict.rows.length > 0) {
+      conflicts.push({
+        type: 'lecturer',
+        message: `Giảng viên đang dạy lớp ${lecturerConflict.rows[0].section_code} (${lecturerConflict.rows[0].subject_name}) tại phòng ${lecturerConflict.rows[0].room} vào ${getDayName(day_of_week)} tuần ${week} từ tiết ${lecturerConflict.rows[0].start_period} đến ${lecturerConflict.rows[0].end_period}`
+      });
+    }
+    
+    // Check for student conflicts
+    const studentConflict = await pool.query(
+      `SELECT DISTINCT ss.student_id, u.full_name, s.schedule_id, s.start_period, s.end_period, 
+              sub.subject_name, s.room, s.week, cs.section_code
+       FROM section_students ss
+       JOIN schedules s ON s.section_id = $1
+       JOIN course_sections cs ON s.section_id = cs.section_id
+       JOIN subjects sub ON cs.subject_id = sub.subject_id
+       JOIN users u ON ss.student_id = u.user_id
+       WHERE ss.student_id IN (
+         SELECT ss2.student_id
+         FROM section_students ss2
+         JOIN schedules s2 ON s2.section_id = ss2.section_id
+         WHERE s2.day_of_week = $2
+           AND s2.week = $3
+           AND s2.schedule_id != $4
+           AND (
+             (s2.start_period <= $5 AND s2.end_period > $5) OR
+             (s2.start_period < $6 AND s2.end_period >= $6) OR
+             (s2.start_period >= $5 AND s2.end_period <= $6)
+           )
+       )
+       LIMIT 5`,
+      [section_id, day_of_week, week, id, start_period, end_period]
+    );
+    
+    if (studentConflict.rows.length > 0) {
+      const conflictCount = studentConflict.rows.length;
+      conflicts.push({
+        type: 'student',
+        message: `${conflictCount} sinh viên có xung đột lịch học vào ${getDayName(day_of_week)} tuần ${week} từ tiết ${start_period} đến ${end_period}`
+      });
+    }
+    
+    // If there are conflicts and override is not set, return warning
+    if (conflicts.length > 0 && !override_conflicts) {
       return res.status(409).json({ 
-        error: `Lecturer is already teaching ${lecturerConflict.rows[0].subject_name} on ${getDayName(day_of_week)} from period ${lecturerConflict.rows[0].start_period} to ${lecturerConflict.rows[0].end_period}` 
+        error: 'Phát hiện xung đột lịch học',
+        conflicts: conflicts,
+        warning: 'Vui lòng kiểm tra các xung đột trên. Nếu muốn bỏ qua, hãy gửi lại yêu cầu với override_conflicts: true'
       });
     }
     
     // Update schedule
     const updateResult = await pool.query(
       `UPDATE schedules
-       SET section_id = $1, day_of_week = $2, start_period = $3, end_period = $4, room = $5
-       WHERE schedule_id = $6
-       RETURNING schedule_id, section_id, day_of_week, start_period, end_period, room`,
-      [section_id, day_of_week, start_period, end_period, room || null, id]
+       SET section_id = $1, day_of_week = $2, start_period = $3, end_period = $4, room = $5, week = $6
+       WHERE schedule_id = $7
+       RETURNING schedule_id, section_id, day_of_week, start_period, end_period, room, week`,
+      [section_id, day_of_week, start_period, end_period, room || null, week, id]
     );
     
     res.json({
       message: 'Cập nhật lịch học thành công',
-      data: updateResult.rows[0]
+      data: updateResult.rows[0],
+      conflicts_overridden: conflicts.length > 0 ? conflicts : null
     });
   } catch (error) {
     console.error('Error updating schedule:', error);
@@ -929,11 +1085,69 @@ exports.getStudentsInSection = async (req, res) => {
   }
 };
 
+// Get students with their grades in a single query (optimized for grade entry)
+exports.getStudentsWithGrades = async (req, res) => {
+  try {
+    const { sectionId } = req.params;
+    
+    const query = `
+      SELECT 
+        s.student_id,
+        u.full_name,
+        u.email,
+        s.class_id,
+        c.class_name,
+        ss.registered_at,
+        g.grade_id,
+        g.attendance,
+        g.midterm,
+        g.final,
+        g.total_10,
+        g.total_4,
+        g.grade_char,
+        g.status
+      FROM section_students ss
+      JOIN students s ON ss.student_id = s.student_id
+      JOIN users u ON s.user_id = u.user_id
+      LEFT JOIN classes c ON s.class_id = c.class_id
+      LEFT JOIN grades g ON ss.section_id = g.section_id AND ss.student_id = g.student_id
+      WHERE ss.section_id = $1
+      ORDER BY s.student_id
+    `;
+    
+    const result = await pool.query(query, [sectionId]);
+    
+    // Format response with default values for missing grades
+    const students = result.rows.map(row => ({
+      student_id: row.student_id,
+      full_name: row.full_name,
+      email: row.email,
+      class_id: row.class_id,
+      class_name: row.class_name,
+      registered_at: row.registered_at,
+      grade_id: row.grade_id,
+      attendance: row.attendance,
+      midterm: row.midterm,
+      final: row.final,
+      total_10: row.total_10,
+      total_4: row.total_4,
+      grade_char: row.grade_char,
+      status: row.status || 'DRAFT'
+    }));
+    
+    res.json(students);
+  } catch (error) {
+    console.error('Error getting students with grades:', error);
+    res.status(500).json({ error: error.message });
+  }
+};
+
 exports.getSectionsForStudent = async (req, res) => {
   try {
     const { studentId } = req.params;
     
-    const query = `
+    // Get sections for student
+    const sectionsQuery = `
       SELECT 
         cs.section_id,
         cs.section_code,
@@ -954,8 +1168,29 @@ exports.getSectionsForStudent = async (req, res) => {
       ORDER BY cs.academic_year DESC, cs.semester, sub.subject_name
     `;
     
-    const result = await pool.query(query, [studentId]);
-    res.json(result.rows);
+    const sectionsResult = await pool.query(sectionsQuery, [studentId]);
+    const sections = sectionsResult.rows;
+    
+    // Get schedules for each section
+    for (let section of sections) {
+      const schedulesQuery = `
+        SELECT 
+          schedule_id,
+          day_of_week,
+          start_period,
+          end_period,
+          room,
+          week
+        FROM schedules
+        WHERE section_id = $1
+        ORDER BY week, day_of_week, start_period
+      `;
+      
+      const schedulesResult = await pool.query(schedulesQuery, [section.section_id]);
+      section.schedules = schedulesResult.rows;
+    }
+    
+    res.json(sections);
   } catch (error) {
     console.error('Error getting sections for student:', error);
     res.status(500).json({ error: error.message });

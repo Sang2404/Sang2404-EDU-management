@@ -10,7 +10,8 @@ import {
   Tag,
   Space,
   Descriptions,
-  Divider
+  Divider,
+  Alert
 } from 'antd';
 import { 
   CheckOutlined, 
@@ -24,14 +25,19 @@ const { TextArea } = Input;
 
 const GradeApprovalPage = () => {
   const [pendingSections, setPendingSections] = useState([]);
+  const [selectedRowKeys, setSelectedRowKeys] = useState([]);
   const [selectedSection, setSelectedSection] = useState(null);
   const [grades, setGrades] = useState([]);
   const [loading, setLoading] = useState(false);
   const [gradesLoading, setGradesLoading] = useState(false);
+  const [bulkLoading, setBulkLoading] = useState(false);
   const [viewModalVisible, setViewModalVisible] = useState(false);
   const [approveModalVisible, setApproveModalVisible] = useState(false);
   const [rejectModalVisible, setRejectModalVisible] = useState(false);
+  const [bulkApproveModalVisible, setBulkApproveModalVisible] = useState(false);
+  const [bulkRejectModalVisible, setBulkRejectModalVisible] = useState(false);
   const [rejectForm] = Form.useForm();
+  const [bulkRejectForm] = Form.useForm();
 
   useEffect(() => {
     fetchPendingGrades();
@@ -43,7 +49,8 @@ const GradeApprovalPage = () => {
       const response = await axios.get('/admin/grades/pending');
       setPendingSections(response.data);
     } catch (error) {
-      message.error('Không thể tải danh sách bảng điểm chờ duyệt');
+      const errorMsg = error.response?.data?.error || error.response?.data?.message || 'Không thể tải danh sách bảng điểm chờ duyệt';
+      message.error(errorMsg);
     } finally {
       setLoading(false);
     }
@@ -60,7 +67,8 @@ const GradeApprovalPage = () => {
       const gradesResponse = await axios.get(`/lecturers/${lecturerId}/sections/${sectionId}/grades`);
       setGrades(gradesResponse.data);
     } catch (error) {
-      message.error('Không thể tải chi tiết bảng điểm');
+      const errorMsg = error.response?.data?.error || error.response?.data?.message || 'Không thể tải chi tiết bảng điểm';
+      message.error(errorMsg);
       setGrades([]);
     } finally {
       setGradesLoading(false);
@@ -106,6 +114,71 @@ const GradeApprovalPage = () => {
       fetchPendingGrades();
     } catch (error) {
       message.error(error.response?.data?.error || 'Không thể từ chối bảng điểm');
+    }
+  };
+
+  const handleBulkApprove = () => {
+    if (selectedRowKeys.length === 0) {
+      message.warning('Vui lòng chọn ít nhất một bảng điểm');
+      return;
+    }
+    setBulkApproveModalVisible(true);
+  };
+
+  const handleBulkReject = () => {
+    if (selectedRowKeys.length === 0) {
+      message.warning('Vui lòng chọn ít nhất một bảng điểm');
+      return;
+    }
+    bulkRejectForm.resetFields();
+    setBulkRejectModalVisible(true);
+  };
+
+  const confirmBulkApprove = async () => {
+    try {
+      setBulkLoading(true);
+      const sectionIds = selectedRowKeys.map(key => {
+        const section = pendingSections.find(s => s.section_id === key);
+        return section?.section_id;
+      }).filter(Boolean);
+
+      await axios.post('/admin/grades/bulk-approve', {
+        section_ids: sectionIds
+      });
+
+      message.success(`Phê duyệt ${sectionIds.length} bảng điểm thành công`);
+      setBulkApproveModalVisible(false);
+      setSelectedRowKeys([]);
+      fetchPendingGrades();
+    } catch (error) {
+      message.error(error.response?.data?.error || 'Không thể phê duyệt bảng điểm');
+    } finally {
+      setBulkLoading(false);
+    }
+  };
+
+  const confirmBulkReject = async (values) => {
+    try {
+      setBulkLoading(true);
+      const sectionIds = selectedRowKeys.map(key => {
+        const section = pendingSections.find(s => s.section_id === key);
+        return section?.section_id;
+      }).filter(Boolean);
+
+      await axios.post('/admin/grades/bulk-reject', {
+        section_ids: sectionIds,
+        reason: values.reason
+      });
+
+      message.success(`Từ chối ${sectionIds.length} bảng điểm thành công`);
+      setBulkRejectModalVisible(false);
+      bulkRejectForm.resetFields();
+      setSelectedRowKeys([]);
+      fetchPendingGrades();
+    } catch (error) {
+      message.error(error.response?.data?.error || 'Không thể từ chối bảng điểm');
+    } finally {
+      setBulkLoading(false);
     }
   };
 
@@ -288,6 +361,16 @@ const GradeApprovalPage = () => {
     }
   ];
 
+  const rowSelection = {
+    selectedRowKeys,
+    onChange: setSelectedRowKeys,
+    selections: [
+      Table.SELECTION_ALL,
+      Table.SELECTION_INVERT,
+      Table.SELECTION_NONE
+    ]
+  };
+
   return (
     <Card 
       title={
@@ -297,11 +380,41 @@ const GradeApprovalPage = () => {
         </Space>
       }
     >
+      {selectedRowKeys.length > 0 && (
+        <Alert
+          message={`Đã chọn ${selectedRowKeys.length} bảng điểm`}
+          type="info"
+          showIcon
+          style={{ marginBottom: 16 }}
+          action={
+            <Space>
+              <Button 
+                size="small" 
+                type="primary"
+                icon={<CheckOutlined />}
+                onClick={handleBulkApprove}
+              >
+                Phê duyệt tất cả
+              </Button>
+              <Button 
+                size="small" 
+                danger
+                icon={<CloseOutlined />}
+                onClick={handleBulkReject}
+              >
+                Từ chối tất cả
+              </Button>
+            </Space>
+          }
+        />
+      )}
+
       <Table
         columns={pendingColumns}
         dataSource={pendingSections}
         rowKey="section_id"
         loading={loading}
+        rowSelection={rowSelection}
         scroll={{ x: 1100 }}
         pagination={{
           pageSize: 10,
@@ -457,6 +570,76 @@ const GradeApprovalPage = () => {
             </p>
           </div>
         )}
+      </Modal>
+
+      {/* Bulk Approve Modal */}
+      <Modal
+        title="Xác nhận phê duyệt hàng loạt"
+        open={bulkApproveModalVisible}
+        onOk={confirmBulkApprove}
+        onCancel={() => setBulkApproveModalVisible(false)}
+        okText="Phê duyệt"
+        cancelText="Hủy"
+        okButtonProps={{ icon: <CheckOutlined />, loading: bulkLoading }}
+        confirmLoading={bulkLoading}
+      >
+        <div>
+          <p>Bạn có chắc chắn muốn phê duyệt <strong>{selectedRowKeys.length} bảng điểm</strong> này?</p>
+          <Alert
+            message="Lưu ý"
+            description="Sau khi phê duyệt, tất cả các bảng điểm sẽ được công bố cho sinh viên và không thể chỉnh sửa."
+            type="warning"
+            showIcon
+            style={{ marginTop: 16 }}
+          />
+        </div>
+      </Modal>
+
+      {/* Bulk Reject Modal */}
+      <Modal
+        title="Xác nhận từ chối hàng loạt"
+        open={bulkRejectModalVisible}
+        onOk={() => bulkRejectForm.submit()}
+        onCancel={() => {
+          setBulkRejectModalVisible(false);
+          bulkRejectForm.resetFields();
+        }}
+        okText="Từ chối"
+        cancelText="Hủy"
+        okButtonProps={{ danger: true, icon: <CloseOutlined />, loading: bulkLoading }}
+        confirmLoading={bulkLoading}
+      >
+        <div>
+          <p>Bạn có chắc chắn muốn từ chối <strong>{selectedRowKeys.length} bảng điểm</strong> này?</p>
+          
+          <Form
+            form={bulkRejectForm}
+            layout="vertical"
+            onFinish={confirmBulkReject}
+          >
+            <Form.Item
+              name="reason"
+              label="Lý do từ chối"
+              rules={[
+                { required: true, message: 'Vui lòng nhập lý do từ chối' },
+                { min: 10, message: 'Lý do phải có ít nhất 10 ký tự' }
+              ]}
+            >
+              <TextArea
+                rows={4}
+                placeholder="Nhập lý do từ chối các bảng điểm này..."
+              />
+            </Form.Item>
+          </Form>
+          
+          <Alert
+            message="Lưu ý"
+            description="Sau khi từ chối, tất cả các bảng điểm sẽ được chuyển về trạng thái nháp để giảng viên chỉnh sửa."
+            type="warning"
+            showIcon
+            style={{ marginTop: 16 }}
+          />
+        </div>
       </Modal>
     </Card>
   );

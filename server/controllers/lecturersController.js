@@ -53,10 +53,10 @@ exports.getLecturerSections = async (req, res) => {
     const sections = await Promise.all(
       sectionsResult.rows.map(async (section) => {
         const schedulesQuery = `
-          SELECT schedule_id, day_of_week, start_period, end_period, room
+          SELECT schedule_id, day_of_week, start_period, end_period, room, week
           FROM schedules
           WHERE section_id = $1
-          ORDER BY day_of_week, start_period
+          ORDER BY week, day_of_week, start_period
         `;
         
         const schedulesResult = await pool.query(schedulesQuery, [section.section_id]);
@@ -139,10 +139,10 @@ exports.getLecturerSectionDetails = async (req, res) => {
     
     // Fetch schedules
     const schedulesQuery = `
-      SELECT schedule_id, day_of_week, start_period, end_period, room
+      SELECT schedule_id, day_of_week, start_period, end_period, room, week
       FROM schedules
       WHERE section_id = $1
-      ORDER BY day_of_week, start_period
+      ORDER BY week, day_of_week, start_period
     `;
     
     const schedulesResult = await pool.query(schedulesQuery, [sectionId]);
@@ -211,15 +211,47 @@ exports.getLecturerStatistics = async (req, res) => {
     const totalStudents = parseInt(stats.total_students);
     const averageClassSize = totalSections > 0 ? Math.round(totalStudents / totalSections) : 0;
     
+    // Query grade statistics
+    const gradeStatsQuery = `
+      SELECT 
+        ROUND(AVG(g.total_10), 2) as average_grade,
+        COUNT(g.grade_id) as total_grades,
+        COUNT(*) FILTER (WHERE g.total_10 >= 4.0) as passed,
+        COUNT(*) FILTER (WHERE g.total_10 < 4.0) as failed
+      FROM grades g
+      JOIN course_sections cs ON g.section_id = cs.section_id
+      WHERE cs.lecturer_id = $1
+        AND g.status = 'APPROVED'
+        AND ($2::text IS NULL OR cs.semester = $2)
+        AND ($3::text IS NULL OR cs.academic_year = $3)
+    `;
+    
+    const gradeStatsResult = await pool.query(gradeStatsQuery, [
+      lecturerId,
+      semester || null,
+      academic_year || null
+    ]);
+    
+    const gradeStats = gradeStatsResult.rows[0];
+    const totalGrades = parseInt(gradeStats.total_grades) || 0;
+    const passedCount = parseInt(gradeStats.passed) || 0;
+    const failedCount = parseInt(gradeStats.failed) || 0;
+    const passRate = totalGrades > 0 ? Math.round((passedCount / totalGrades) * 1000) / 10 : 0;
+    const failRate = totalGrades > 0 ? Math.round((failedCount / totalGrades) * 1000) / 10 : 0;
+    
     // Query sections by subject
     const subjectStatsQuery = `
       SELECT 
         s.subject_name,
         COUNT(DISTINCT cs.section_id) as section_count,
-        COUNT(DISTINCT ss.student_id) as student_count
+        COUNT(DISTINCT ss.student_id) as student_count,
+        ROUND(AVG(g.total_10), 2) as average_grade,
+        COUNT(*) FILTER (WHERE g.total_10 >= 4.0) as passed,
+        COUNT(*) FILTER (WHERE g.total_10 < 4.0) as failed
       FROM course_sections cs
       JOIN subjects s ON cs.subject_id = s.subject_id
       LEFT JOIN section_students ss ON cs.section_id = ss.section_id
+      LEFT JOIN grades g ON cs.section_id = g.section_id AND g.status = 'APPROVED'
       WHERE cs.lecturer_id = $1
         AND ($2::text IS NULL OR cs.semester = $2)
         AND ($3::text IS NULL OR cs.academic_year = $3)
@@ -233,11 +265,20 @@ exports.getLecturerStatistics = async (req, res) => {
       academic_year || null
     ]);
     
-    const sectionsBySubject = subjectStatsResult.rows.map(row => ({
-      subject_name: row.subject_name,
-      section_count: parseInt(row.section_count),
-      student_count: parseInt(row.student_count)
-    }));
+    const sectionsBySubject = subjectStatsResult.rows.map(row => {
+      const subjectTotal = parseInt(row.passed || 0) + parseInt(row.failed || 0);
+      const subjectPassRate = subjectTotal > 0 ? Math.round((parseInt(row.passed || 0) / subjectTotal) * 1000) / 10 : 0;
+      
+      return {
+        subject_name: row.subject_name,
+        section_count: parseInt(row.section_count),
+        student_count: parseInt(row.student_count),
+        average_grade: parseFloat(row.average_grade) || 0,
+        passed: parseInt(row.passed) || 0,
+        failed: parseInt(row.failed) || 0,
+        pass_rate: subjectPassRate
+      };
+    });
     
     res.json({
       lecturer_id: lecturerId,
@@ -248,6 +289,14 @@ exports.getLecturerStatistics = async (req, res) => {
         total_sections: totalSections,
         total_students: totalStudents,
         average_class_size: averageClassSize,
+        grade_statistics: {
+          total_grades: totalGrades,
+          average_grade: parseFloat(gradeStats.average_grade) || 0,
+          passed: passedCount,
+          failed: failedCount,
+          pass_rate: passRate,
+          fail_rate: failRate
+        },
         sections_by_subject: sectionsBySubject
       }
     });

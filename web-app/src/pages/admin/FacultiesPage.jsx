@@ -54,7 +54,8 @@ const FacultiesPage = () => {
       setEditingFaculty(null);
       fetchFaculties();
     } catch (error) {
-      message.error(editingFaculty ? 'Cập nhật thất bại' : 'Tạo mới thất bại');
+      const errorMsg = error.response?.data?.error || error.response?.data?.message || (editingFaculty ? 'Cập nhật thất bại' : 'Tạo mới thất bại');
+      message.error(errorMsg);
     }
   };
 
@@ -64,11 +65,8 @@ const FacultiesPage = () => {
       message.success('Xóa Khoa thành công');
       fetchFaculties();
     } catch (error) {
-      if (error.response && error.response.status === 500) {
-         message.error('Không thể xóa Khoa này (Có thể đang chứa Ngành học)');
-      } else {
-         message.error('Xóa thất bại');
-      }
+      const errorMsg = error.response?.data?.error || error.response?.data?.message || 'Không thể xóa Khoa này (Có thể đang chứa Ngành học)';
+      message.error(errorMsg);
     }
   };
 

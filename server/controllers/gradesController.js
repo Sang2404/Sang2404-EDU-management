@@ -46,6 +46,8 @@ exports.enterGrade = async (req, res) => {
   try {
     const { section_id, student_id, attendance, midterm, final, lecturer_id } = req.body;
     
+    console.log('DEBUG: enterGrade called with:', { section_id, student_id, attendance, midterm, final, lecturer_id });
+    
     // Validate required fields
     if (!section_id) {
       return res.status(400).json({ error: 'section_id is required' });
@@ -167,6 +169,7 @@ exports.getStudentGrades = async (req, res) => {
     const query = `
       SELECT 
         g.grade_id,
+        cs.section_id,
         cs.section_code,
         cs.subject_id,
         s.subject_name,
@@ -179,13 +182,14 @@ exports.getStudentGrades = async (req, res) => {
         g.final,
         g.total_10,
         g.total_4,
-        g.grade_char
+        g.grade_char,
+        g.status
       FROM grades g
       JOIN course_sections cs ON g.section_id = cs.section_id
       JOIN subjects s ON cs.subject_id = s.subject_id
       JOIN lecturers l ON cs.lecturer_id = l.lecturer_id
       JOIN users u ON l.user_id = u.user_id
-      WHERE g.student_id = $1 AND g.status = 'APPROVED'
+      WHERE g.student_id = $1
       ORDER BY cs.academic_year DESC, cs.semester, s.subject_name
     `;
     

@@ -1,36 +1,122 @@
-import React from 'react';
-import { Card, Typography, Empty, Calendar, Badge, List, Tag, Space, Spin } from 'antd';
-import { CalendarOutlined, ClockCircleOutlined, EnvironmentOutlined, BookOutlined } from '@ant-design/icons';
 import { useState, useEffect } from 'react';
+import { Card, Select, Spin, Empty, Space } from 'antd';
+import { SunOutlined, CloudOutlined, MoonOutlined } from '@ant-design/icons';
 import api from '../../config/axios';
-import dayjs from 'dayjs';
-import 'dayjs/locale/vi';
-
-dayjs.locale('vi');
-
-const { Title } = Typography;
+import '../admin/SchedulesPage.css';
 
 const SchedulePage = () => {
   const [schedules, setSchedules] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [selectedDate, setSelectedDate] = useState(dayjs());
+  const [user, setUser] = useState(null);
+  const [filters, setFilters] = useState({
+    semester: 'HK2',
+    academic_year: '2025-2026',
+    week: 'week1'
+  });
+
+  const periods = {
+    morning: { start: 1, end: 5, label: 'Sáng', time: '07:00 - 11:30', icon: <SunOutlined /> },
+    afternoon: { start: 6, end: 10, label: 'Chiều', time: '12:30 - 17:00', icon: <CloudOutlined /> },
+    evening: { start: 11, end: 15, label: 'Tối', time: '17:15 - 21:15', icon: <MoonOutlined /> }
+  };
+
+  const days = [
+    { value: 2, label: 'Thứ 2' },
+    { value: 3, label: 'Thứ 3' },
+    { value: 4, label: 'Thứ 4' },
+    { value: 5, label: 'Thứ 5' },
+    { value: 6, label: 'Thứ 6' },
+    { value: 7, label: 'Thứ 7' },
+    { value: 8, label: 'Chủ Nhật' }
+  ];
+
+  // Tính ngày tháng cho mỗi thứ
+  const getDateForDay = (dayOfWeek) => {
+    const weekNumber = parseInt(filters.week.replace('week', ''));
+    const yearParts = filters.academic_year.split('-');
+    const startYear = parseInt(yearParts[0]);
+    const endYear = parseInt(yearParts[1]);
+    
+    const semesterStarts = {
+      'HK1': { month: 8, day: 15, year: startYear },
+      'HK2': { month: 1, day: 10, year: endYear },
+      'HK3': { month: 5, day: 15, year: endYear }
+    };
+    
+    const start = semesterStarts[filters.semester];
+    if (!start) return '';
+    
+    const weekStartDate = new Date(start.year, start.month - 1, start.day + ((weekNumber - 1) * 7));
+    const dayOffset = dayOfWeek === 8 ? 6 : (dayOfWeek - 2);
+    const targetDate = new Date(weekStartDate);
+    targetDate.setDate(weekStartDate.getDate() + dayOffset);
+    
+    const day = String(targetDate.getDate()).padStart(2, '0');
+    const month = String(targetDate.getMonth() + 1).padStart(2, '0');
+    return `${day}/${month}`;
+  };
+
+  // Tạo options cho tuần
+  const getWeekOptions = (academicYear, semester) => {
+    const yearParts = academicYear.split('-');
+    const startYear = parseInt(yearParts[0]);
+    const endYear = parseInt(yearParts[1]);
+    
+    const semesterStarts = {
+      'HK1': { month: 8, day: 15, year: startYear },
+      'HK2': { month: 1, day: 10, year: endYear },
+      'HK3': { month: 5, day: 15, year: endYear }
+    };
+    
+    const start = semesterStarts[semester];
+    if (!start) return [];
+    
+    const weeks = [];
+    for (let i = 0; i < 16; i++) {
+      const weekStart = new Date(start.year, start.month - 1, start.day + (i * 7));
+      const weekEnd = new Date(start.year, start.month - 1, start.day + (i * 7) + 6);
+      
+      const formatDate = (date) => {
+        const d = String(date.getDate()).padStart(2, '0');
+        const m = String(date.getMonth() + 1).padStart(2, '0');
+        return `${d}/${m}`;
+      };
+      
+      weeks.push({
+        value: `week${i + 1}`,
+        label: `Tuần ${i + 1} (${formatDate(weekStart)} - ${formatDate(weekEnd)})`
+      });
+    }
+    
+    return weeks;
+  };
+
+  const weekOptions = getWeekOptions(filters.academic_year, filters.semester);
+
+  useEffect(() => {
+    const userData = JSON.parse(localStorage.getItem('user'));
+    setUser(userData);
+  }, []);
 
   useEffect(() => {
     fetchSchedules();
-  }, []);
+  }, [filters]);
 
   const fetchSchedules = async () => {
     setLoading(true);
     try {
       const user = JSON.parse(localStorage.getItem('user'));
-      
-      // Get student's enrolled sections
       const sectionsResponse = await api.get(`/academic/students/${user.username}/sections`);
       const sections = sectionsResponse.data || [];
 
-      // Flatten schedules from all sections
+      // Filter sections by semester and academic_year
+      const filteredSections = sections.filter(section => 
+        section.semester === filters.semester && 
+        section.academic_year === filters.academic_year
+      );
+
       const allSchedules = [];
-      sections.forEach(section => {
+      filteredSections.forEach(section => {
         if (section.schedules && section.schedules.length > 0) {
           section.schedules.forEach(schedule => {
             allSchedules.push({
@@ -43,228 +129,223 @@ const SchedulePage = () => {
           });
         }
       });
-
       setSchedules(allSchedules);
     } catch (error) {
-      console.error('Error fetching schedules:', error);
+      const errorMsg = error.response?.data?.error || error.response?.data?.message || 'Không thể tải lịch học';
+      message.error(errorMsg);
     } finally {
       setLoading(false);
     }
   };
 
-  const getDayName = (dayOfWeek) => {
-    const days = {
-      2: 'Thứ 2',
-      3: 'Thứ 3',
-      4: 'Thứ 4',
-      5: 'Thứ 5',
-      6: 'Thứ 6',
-      7: 'Thứ 7',
-      8: 'Chủ nhật'
-    };
-    return days[dayOfWeek] || '';
-  };
-
-  const getDayColor = (dayOfWeek) => {
-    const colors = {
-      2: 'blue',
-      3: 'green',
-      4: 'orange',
-      5: 'purple',
-      6: 'cyan',
-      7: 'magenta',
-      8: 'red'
-    };
-    return colors[dayOfWeek] || 'default';
-  };
-
-  const getSchedulesForDate = (date) => {
-    const dayOfWeek = date.day() === 0 ? 8 : date.day() + 1;
-    return schedules.filter(s => s.day_of_week === dayOfWeek);
-  };
-
-  const dateCellRender = (value) => {
-    const daySchedules = getSchedulesForDate(value);
-    return (
-      <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
-        {daySchedules.map((schedule, index) => (
-          <li key={index}>
-            <Badge 
-              status="processing" 
-              text={
-                <span style={{ fontSize: 11 }}>
-                  {schedule.subject_name.substring(0, 15)}...
-                </span>
-              }
-            />
-          </li>
-        ))}
-      </ul>
+  // Lấy lịch học cho ngày và ca cụ thể
+  const getScheduleForDayAndPeriod = (day, periodKey) => {
+    const periodRange = periods[periodKey];
+    const weekNumber = parseInt(filters.week.replace('week', ''));
+    
+    return schedules.find(s => 
+      s.week === weekNumber &&
+      s.day_of_week === day &&
+      s.start_period >= periodRange.start &&
+      s.end_period <= periodRange.end
     );
   };
 
-  const onDateSelect = (date) => {
-    setSelectedDate(date);
+  // Màu sắc theo ca học
+  const getPeriodColor = (periodKey) => {
+    const colors = {
+      morning: { bg: '#e6f4ff', border: '#91caff' },    // Xanh nhạt
+      afternoon: { bg: '#fff7e6', border: '#ffd591' },  // Vàng nhạt
+      evening: { bg: '#f9f0ff', border: '#d3adf7' }     // Tím nhạt
+    };
+    return colors[periodKey];
   };
-
-  const selectedDateSchedules = getSchedulesForDate(selectedDate);
-
-  // Group schedules by day for weekly view
-  const schedulesByDay = {};
-  [2, 3, 4, 5, 6, 7, 8].forEach(day => {
-    schedulesByDay[day] = schedules.filter(s => s.day_of_week === day);
-  });
 
   if (loading) {
     return (
-      <Card>
-        <div style={{ textAlign: 'center', padding: 50 }}>
-          <Spin size="large" />
-          <p style={{ marginTop: 16 }}>Đang tải thời khóa biểu...</p>
-        </div>
-      </Card>
+      <div style={{ textAlign: 'center', padding: '100px' }}>
+        <Spin size="large" />
+      </div>
     );
   }
 
   return (
-    <div>
-      <Title level={2}>
-        <CalendarOutlined /> Thời khóa biểu
-      </Title>
-
-      {schedules.length === 0 ? (
-        <Card>
-          <Empty 
-            description="Bạn chưa đăng ký lớp học phần nào"
-            style={{ padding: '50px 0' }}
+    <Card 
+      title="📅 Thời khóa biểu"
+    >
+      {/* Filters */}
+      <div style={{ 
+        display: 'flex', 
+        gap: 16, 
+        marginBottom: 24,
+        padding: '16px 0'
+      }}>
+        <div style={{ flex: 1 }}>
+          <div style={{ marginBottom: 8, fontSize: 13, fontWeight: 500, color: '#666' }}>
+            Năm học
+          </div>
+          <Select
+            value={filters.academic_year}
+            style={{ width: '100%' }}
+            onChange={(value) => setFilters({ ...filters, academic_year: value, week: 'week1' })}
+            aria-label="Chọn năm học"
+            options={[
+              { value: '2024-2025', label: '2024 - 2025' },
+              { value: '2025-2026', label: '2025 - 2026' },
+              { value: '2026-2027', label: '2026 - 2027' },
+            ]}
           />
-        </Card>
-      ) : (
-        <>
-          {/* Weekly Schedule View */}
-          <Card 
-            title={
-              <Space>
-                <BookOutlined />
-                <span>Lịch học theo tuần</span>
-              </Space>
-            }
-            style={{ marginBottom: 16 }}
-          >
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 8 }}>
-              {[2, 3, 4, 5, 6, 7, 8].map(day => (
-                <Card 
-                  key={day}
-                  size="small"
-                  title={
-                    <div style={{ textAlign: 'center', fontSize: 12, fontWeight: 'bold' }}>
-                      {getDayName(day)}
-                    </div>
-                  }
-                  headStyle={{ 
-                    backgroundColor: schedulesByDay[day].length > 0 ? '#e6f7ff' : '#fafafa',
-                    minHeight: 40
-                  }}
-                  bodyStyle={{ padding: 8 }}
-                >
-                  {schedulesByDay[day].length > 0 ? (
-                    <List
-                      size="small"
-                      dataSource={schedulesByDay[day]}
-                      renderItem={schedule => (
-                        <List.Item style={{ padding: '6px 0', border: 'none' }}>
-                          <div style={{ width: '100%' }}>
-                            <div style={{ fontSize: 12, fontWeight: 'bold', marginBottom: 4, color: '#1890ff' }}>
-                              {schedule.subject_name}
-                            </div>
-                            <div style={{ fontSize: 11, color: '#666', marginBottom: 2 }}>
-                              <ClockCircleOutlined /> Tiết {schedule.start_period}-{schedule.end_period}
-                            </div>
-                            {schedule.room && (
-                              <div style={{ fontSize: 11, color: '#666', marginBottom: 2 }}>
-                                <EnvironmentOutlined /> {schedule.room}
-                              </div>
-                            )}
-                            <div style={{ fontSize: 10, color: '#999' }}>
-                              GV: {schedule.lecturer_name}
-                            </div>
-                            <Tag size="small" color="blue" style={{ fontSize: 9, marginTop: 4 }}>
-                              {schedule.section_code}
-                            </Tag>
-                          </div>
-                        </List.Item>
-                      )}
-                    />
-                  ) : (
-                    <div style={{ textAlign: 'center', color: '#999', fontSize: 11, padding: 16 }}>
-                      Không có lịch
-                    </div>
-                  )}
-                </Card>
-              ))}
+        </div>
+
+        <div style={{ flex: 1 }}>
+          <div style={{ marginBottom: 8, fontSize: 13, fontWeight: 500, color: '#666' }}>
+            Học kỳ
+          </div>
+          <Select
+            value={filters.semester}
+            style={{ width: '100%' }}
+            onChange={(value) => setFilters({ ...filters, semester: value, week: 'week1' })}
+            aria-label="Chọn học kỳ"
+            options={[
+              { value: 'HK1', label: 'Học kỳ 1' },
+              { value: 'HK2', label: 'Học kỳ 2' },
+              { value: 'HK3', label: 'Học kỳ 3' },
+            ]}
+          />
+        </div>
+
+        <div style={{ flex: 2 }}>
+          <div style={{ marginBottom: 8, fontSize: 13, fontWeight: 500, color: '#666' }}>
+            Chọn tuần
+          </div>
+          <Select
+            value={filters.week}
+            style={{ width: '100%' }}
+            onChange={(value) => setFilters({ ...filters, week: value })}
+            aria-label="Chọn tuần học"
+            options={weekOptions}
+          />
+        </div>
+      </div>
+
+      {/* Schedule Table */}
+      <div style={{ marginTop: 24 }}>
+        {/* Header */}
+        <div style={{ 
+          display: 'flex', 
+          gap: 16, 
+          marginBottom: 16,
+          borderBottom: '2px solid #f0f0f0',
+          paddingBottom: 12
+        }}>
+          <div style={{ width: 100, fontWeight: 600, color: '#666', fontSize: 13 }}>Ca học</div>
+          {days.map(day => (
+            <div key={day.value} style={{ flex: 1, textAlign: 'center' }}>
+              <div style={{ fontWeight: 700, fontSize: 16, color: '#1677ff', marginBottom: 4 }}>
+                {day.label}
+              </div>
+              <div style={{ fontSize: 12, color: '#999' }}>
+                {getDateForDay(day.value)}
+              </div>
             </div>
-          </Card>
+          ))}
+        </div>
 
-          {/* Calendar View */}
-          <Card 
-            title={
-              <Space>
-                <CalendarOutlined />
-                <span>Lịch theo tháng</span>
-              </Space>
-            }
-          >
-            <Calendar 
-              dateCellRender={dateCellRender}
-              onSelect={onDateSelect}
-            />
-          </Card>
+        {/* Rows */}
+        {Object.entries(periods).map(([periodKey, period]) => (
+          <div key={periodKey} style={{ 
+            display: 'flex', 
+            gap: 16, 
+            marginBottom: 16,
+            alignItems: 'stretch'
+          }}>
+            {/* Period Label */}
+            <div style={{ 
+              width: 100, 
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+              padding: '12px',
+              background: '#f5f5f5',
+              borderRadius: 8
+            }}>
+              <div style={{ fontSize: 24, marginBottom: 4 }}>{period.icon}</div>
+              <div style={{ fontWeight: 600, fontSize: 14 }}>{period.label}</div>
+              <div style={{ fontSize: 11, color: '#666', textAlign: 'center' }}>{period.time}</div>
+            </div>
+            
+            {/* Schedule Cells */}
+            {days.map(day => {
+              const schedule = getScheduleForDayAndPeriod(day.value, periodKey);
+              const colors = getPeriodColor(periodKey);
+              
+              return (
+                <div 
+                  key={day.value}
+                  style={{ 
+                    flex: 1,
+                    background: schedule ? colors.bg : '#fafafa',
+                    border: schedule ? `2px solid ${colors.border}` : '2px dashed #d9d9d9',
+                    borderRadius: 8,
+                    padding: '12px',
+                    minHeight: '110px',
+                    maxHeight: '110px',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    justifyContent: 'flex-start',
+                    overflow: 'hidden'
+                  }}
+                >
+                  {schedule ? (
+                    <>
+                      <div style={{ 
+                        fontSize: 11, 
+                        color: '#666', 
+                        marginBottom: 4,
+                        fontWeight: 600
+                      }}>
+                        {schedule.section_code}
+                      </div>
+                      <div style={{ 
+                        fontSize: 13, 
+                        fontWeight: 600, 
+                        marginBottom: 6,
+                        color: '#1677ff',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        whiteSpace: 'nowrap'
+                      }}>
+                        {schedule.subject_name}
+                      </div>
+                      <div style={{ fontSize: 11, color: '#666', marginBottom: 3 }}>
+                        Phòng: {schedule.room}
+                      </div>
+                      <div style={{ 
+                        fontSize: 11, 
+                        color: '#666',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        whiteSpace: 'nowrap'
+                      }}>
+                        GV: {schedule.lecturer_name}
+                      </div>
+                    </>
+                  ) : null}
+                </div>
+              );
+            })}
+          </div>
+        ))}
+      </div>
 
-          {/* Selected Date Details */}
-          {selectedDateSchedules.length > 0 && (
-            <Card 
-              title={`Lịch học ngày ${selectedDate.format('DD/MM/YYYY')} - ${getDayName(selectedDate.day() === 0 ? 8 : selectedDate.day() + 1)}`}
-              style={{ marginTop: 16 }}
-            >
-              <List
-                dataSource={selectedDateSchedules}
-                renderItem={schedule => (
-                  <List.Item>
-                    <List.Item.Meta
-                      title={
-                        <Space>
-                          <Tag color={getDayColor(schedule.day_of_week)}>
-                            {getDayName(schedule.day_of_week)}
-                          </Tag>
-                          <span style={{ fontWeight: 'bold' }}>{schedule.subject_name}</span>
-                          <Tag color="blue">{schedule.section_code}</Tag>
-                          <Tag>{schedule.credits} tín chỉ</Tag>
-                        </Space>
-                      }
-                      description={
-                        <Space direction="vertical" size="small">
-                          <span>
-                            <ClockCircleOutlined /> Tiết {schedule.start_period} - {schedule.end_period}
-                          </span>
-                          {schedule.room && (
-                            <span>
-                              <EnvironmentOutlined /> Phòng: {schedule.room}
-                            </span>
-                          )}
-                          <span>
-                            Giảng viên: {schedule.lecturer_name}
-                          </span>
-                        </Space>
-                      }
-                    />
-                  </List.Item>
-                )}
-              />
-            </Card>
-          )}
-        </>
+      {schedules.length === 0 && !loading && (
+        <Empty 
+          description="Bạn chưa đăng ký lớp học phần nào"
+          style={{ marginTop: 50 }}
+        />
       )}
-    </div>
+    </Card>
   );
 };
 

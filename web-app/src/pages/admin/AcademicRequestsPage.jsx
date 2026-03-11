@@ -63,7 +63,8 @@ const AcademicRequestsPage = () => {
       const response = await axios.get(url);
       setRequests(response.data);
     } catch (error) {
-      message.error('Không thể tải danh sách yêu cầu');
+      const errorMsg = error.response?.data?.error || error.response?.data?.message || 'Không thể tải danh sách yêu cầu';
+      message.error(errorMsg);
     } finally {
       setLoading(false);
     }

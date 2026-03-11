@@ -32,7 +32,24 @@ exports.login = async (req, res) => {
     const user = result.rows[0];
     console.log('✅ Đăng nhập thành công:', user.email, '-', user.role);
 
-    // 3. Trả về thông tin người dùng
+    // 3. Lấy thêm thông tin lecturer_id hoặc student_id nếu cần
+    let additionalInfo = {};
+    
+    if (user.role === 'LECTURER') {
+      const lecturerQuery = 'SELECT lecturer_id FROM lecturers WHERE user_id = $1';
+      const lecturerResult = await pool.query(lecturerQuery, [user.user_id]);
+      if (lecturerResult.rows.length > 0) {
+        additionalInfo.lecturer_id = lecturerResult.rows[0].lecturer_id;
+      }
+    } else if (user.role === 'STUDENT') {
+      const studentQuery = 'SELECT student_id FROM students WHERE user_id = $1';
+      const studentResult = await pool.query(studentQuery, [user.user_id]);
+      if (studentResult.rows.length > 0) {
+        additionalInfo.student_id = studentResult.rows[0].student_id;
+      }
+    }
+
+    // 4. Trả về thông tin người dùng
     res.json({
       message: 'Đăng nhập thành công',
       user: {
@@ -41,7 +58,8 @@ exports.login = async (req, res) => {
         full_name: user.full_name,
         role: user.role,
         username: user.username,
-        avatar_url: user.avatar_url
+        avatar_url: user.avatar_url,
+        ...additionalInfo
       }
     });
 

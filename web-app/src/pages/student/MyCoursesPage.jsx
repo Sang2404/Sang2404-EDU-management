@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
-import { Card, Table, Tag, Space, Empty, Spin, Select, Descriptions, Modal, List, Button } from 'antd';
-import { BookOutlined, TeamOutlined, CalendarOutlined, EyeOutlined, ClockCircleOutlined, EnvironmentOutlined } from '@ant-design/icons';
+import { useState, useEffect } from 'react';
+import { Card, Table, Tag, Space, Empty, Spin, Select, Modal, Button, message } from 'antd';
+import { BookOutlined, TeamOutlined, CalendarOutlined, EyeOutlined } from '@ant-design/icons';
 import api from '../../config/axios';
 
 const { Option } = Select;
@@ -34,7 +34,8 @@ const MyCoursesPage = () => {
 
       setCourses(coursesData);
     } catch (error) {
-      console.error('Error fetching courses:', error);
+      const errorMsg = error.response?.data?.error || error.response?.data?.message || 'Không thể tải danh sách môn học';
+      message.error(errorMsg);
     } finally {
       setLoading(false);
     }
@@ -86,14 +87,13 @@ const MyCoursesPage = () => {
       title: 'Mã lớp',
       dataIndex: 'section_code',
       key: 'section_code',
-      width: 120,
-      fixed: 'left'
+      width: 120
     },
     {
       title: 'Môn học',
       dataIndex: 'subject_name',
       key: 'subject_name',
-      width: 250
+      width: 300
     },
     {
       title: 'Tín chỉ',
@@ -106,53 +106,23 @@ const MyCoursesPage = () => {
       title: 'Giảng viên',
       dataIndex: 'lecturer_name',
       key: 'lecturer_name',
-      width: 150
+      width: 200
     },
     {
-      title: 'Sĩ số',
+      title: 'Số buổi',
       key: 'enrollment',
       width: 100,
       align: 'center',
-      render: (_, record) => (
-        <span>
-          <TeamOutlined /> {record.enrolled_count}/{record.max_capacity}
-        </span>
-      )
-    },
-    {
-      title: 'Lịch học',
-      key: 'schedules',
-      width: 300,
-      render: (_, record) => (
-        <Space direction="vertical" size="small">
-          {record.schedules && record.schedules.length > 0 ? (
-            record.schedules.map((schedule, index) => (
-              <div key={index}>
-                <Tag color={getDayColor(schedule.day_of_week)}>
-                  {getDayName(schedule.day_of_week)}
-                </Tag>
-                <span>Tiết {schedule.start_period}-{schedule.end_period}</span>
-                {schedule.room && <span> - Phòng {schedule.room}</span>}
-              </div>
-            ))
-          ) : (
-            <span style={{ color: '#999' }}>Chưa xếp lịch</span>
-          )}
-        </Space>
-      )
-    },
-    {
-      title: 'Phòng',
-      dataIndex: 'room_default',
-      key: 'room_default',
-      width: 100,
-      render: (room) => room || <span style={{ color: '#999' }}>-</span>
+      render: (_, record) => {
+        const scheduleCount = record.schedules?.length || 0;
+        return <Tag color="blue">{scheduleCount} buổi</Tag>;
+      }
     },
     {
       title: 'Thao tác',
       key: 'action',
-      fixed: 'right',
       width: 120,
+      align: 'center',
       render: (_, record) => (
         <Button 
           type="link" 
@@ -215,7 +185,7 @@ const MyCoursesPage = () => {
         title={
           <Space>
             <BookOutlined />
-            <span>Danh sách lớp đã đăng ký</span>
+            <span>Danh sách môn học</span>
           </Space>
         }
         extra={
@@ -244,7 +214,7 @@ const MyCoursesPage = () => {
         }
       >
         {courses.length === 0 ? (
-          <Empty description="Chưa đăng ký lớp học phần nào" />
+          <Empty description="Chưa có môn học nào" />
         ) : (
           <>
             {Object.keys(groupedCourses).map(semester => (
@@ -262,7 +232,6 @@ const MyCoursesPage = () => {
                   dataSource={groupedCourses[semester]}
                   rowKey="section_id"
                   pagination={false}
-                  scroll={{ x: 1200 }}
                   size="small"
                 />
                 <div style={{ 
@@ -272,7 +241,7 @@ const MyCoursesPage = () => {
                   textAlign: 'right'
                 }}>
                   <strong>
-                    Tổng tín chỉ học kỳ: {
+                    Tổng TC học kỳ: {
                       groupedCourses[semester].reduce((sum, c) => sum + c.credits, 0)
                     }
                   </strong>
@@ -286,78 +255,113 @@ const MyCoursesPage = () => {
       {/* Detail Modal */}
       <Modal
         title={
-          selectedCourse ? (
-            <span>
-              Chi tiết lớp {selectedCourse.section_code} - {selectedCourse.subject_name}
-            </span>
-          ) : 'Chi tiết lớp học'
+          <div>
+            <div style={{ fontSize: 18, fontWeight: 600, color: '#1677ff' }}>
+              {selectedCourse?.subject_name}
+            </div>
+            <div style={{ fontSize: 13, color: '#666', marginTop: 4 }}>
+              Mã lớp: {selectedCourse?.section_code} • Giảng viên: {selectedCourse?.lecturer_name}
+            </div>
+          </div>
         }
         open={detailModalVisible}
         onCancel={() => {
           setDetailModalVisible(false);
           setSelectedCourse(null);
         }}
-        footer={null}
-        width={800}
+        footer={[
+          <Button key="close" onClick={() => setDetailModalVisible(false)}>
+            Đóng
+          </Button>
+        ]}
+        width={700}
       >
         {selectedCourse && (
           <div>
-            <Descriptions bordered column={2} size="small" style={{ marginBottom: 16 }}>
-              <Descriptions.Item label="Mã lớp">{selectedCourse.section_code}</Descriptions.Item>
-              <Descriptions.Item label="Mã môn">{selectedCourse.subject_id}</Descriptions.Item>
-              <Descriptions.Item label="Tên môn học" span={2}>
-                {selectedCourse.subject_name}
-              </Descriptions.Item>
-              <Descriptions.Item label="Số tín chỉ">{selectedCourse.credits}</Descriptions.Item>
-              <Descriptions.Item label="Giảng viên">{selectedCourse.lecturer_name}</Descriptions.Item>
-              <Descriptions.Item label="Học kỳ">
-                {selectedCourse.semester} - {selectedCourse.academic_year}
-              </Descriptions.Item>
-              <Descriptions.Item label="Sĩ số">
-                {selectedCourse.enrolled_count}/{selectedCourse.max_capacity}
-              </Descriptions.Item>
-              <Descriptions.Item label="Phòng mặc định" span={2}>
-                {selectedCourse.room_default || <span style={{ color: '#999' }}>Chưa xác định</span>}
-              </Descriptions.Item>
-            </Descriptions>
+            <div style={{ 
+              padding: '12px 16px', 
+              background: '#f5f5f5', 
+              borderRadius: 8,
+              marginBottom: 16
+            }}>
+              <div style={{ display: 'flex', gap: 24, flexWrap: 'wrap' }}>
+                <div>
+                  <span style={{ color: '#666' }}>Mã môn: </span>
+                  <span style={{ fontWeight: 600 }}>{selectedCourse.subject_id}</span>
+                </div>
+                <div>
+                  <span style={{ color: '#666' }}>Tín chỉ: </span>
+                  <span style={{ fontWeight: 600 }}>{selectedCourse.credits}</span>
+                </div>
+                <div>
+                  <span style={{ color: '#666' }}>Học kỳ: </span>
+                  <span style={{ fontWeight: 600 }}>{selectedCourse.semester}</span>
+                </div>
+                <div>
+                  <span style={{ color: '#666' }}>Năm học: </span>
+                  <span style={{ fontWeight: 600 }}>{selectedCourse.academic_year}</span>
+                </div>
+              </div>
+            </div>
 
-            {/* Schedules */}
-            <Card 
-              title={
-                <Space>
-                  <CalendarOutlined />
-                  <span>Lịch học</span>
-                </Space>
-              }
-              size="small"
-            >
-              {selectedCourse.schedules && selectedCourse.schedules.length > 0 ? (
-                <List
-                  dataSource={selectedCourse.schedules}
-                  renderItem={schedule => (
-                    <List.Item>
-                      <Space direction="vertical" style={{ width: '100%' }}>
-                        <Space>
-                          <Tag color={getDayColor(schedule.day_of_week)}>
+            <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 12 }}>
+              📅 Lịch học
+            </div>
+
+            {selectedCourse.schedules && selectedCourse.schedules.length > 0 ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {selectedCourse.schedules
+                  .sort((a, b) => {
+                    if (a.week && b.week) return a.week - b.week;
+                    return a.day_of_week - b.day_of_week;
+                  })
+                  .map((schedule, index) => {
+                    const getPeriodLabel = (start, end) => {
+                      if (start >= 1 && end <= 5) return 'Sáng';
+                      if (start >= 6 && end <= 10) return 'Chiều';
+                      if (start >= 11 && end <= 15) return 'Tối';
+                      return '';
+                    };
+
+                    return (
+                      <div 
+                        key={index}
+                        style={{ 
+                          padding: '12px 16px',
+                          background: '#e6f4ff',
+                          border: '1px solid #91caff',
+                          borderRadius: 8,
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          alignItems: 'center'
+                        }}
+                      >
+                        <div style={{ flex: 1 }}>
+                          <div style={{ fontWeight: 600, marginBottom: 4 }}>
+                            {schedule.week && `Tuần ${schedule.week} • `}
                             {getDayName(schedule.day_of_week)}
-                          </Tag>
-                          <span>
-                            <ClockCircleOutlined /> Tiết {schedule.start_period} - {schedule.end_period}
-                          </span>
-                          {schedule.room && (
-                            <span>
-                              <EnvironmentOutlined /> Phòng {schedule.room}
-                            </span>
-                          )}
-                        </Space>
-                      </Space>
-                    </List.Item>
-                  )}
-                />
-              ) : (
-                <Empty description="Chưa có lịch học" image={Empty.PRESENTED_IMAGE_SIMPLE} />
-              )}
-            </Card>
+                          </div>
+                          <div style={{ fontSize: 13, color: '#666' }}>
+                            {getPeriodLabel(schedule.start_period, schedule.end_period)} • 
+                            Tiết {schedule.start_period} - {schedule.end_period}
+                          </div>
+                        </div>
+                        <div style={{ 
+                          padding: '6px 12px',
+                          background: '#fff',
+                          borderRadius: 6,
+                          fontWeight: 600,
+                          color: '#1677ff'
+                        }}>
+                          Phòng {schedule.room || 'TBA'}
+                        </div>
+                      </div>
+                    );
+                  })}
+              </div>
+            ) : (
+              <Empty description="Chưa có lịch học" image={Empty.PRESENTED_IMAGE_SIMPLE} />
+            )}
           </div>
         )}
       </Modal>
