@@ -23,8 +23,8 @@ router.post('/course-sections', academicController.createCourseSection);
 router.put('/course-sections/:id', academicController.updateCourseSection);
 router.delete('/course-sections/:id', academicController.deleteCourseSection);
 
-router.get('/course-sections/:sectionId/students', academicController.getStudentsInSection);
 router.get('/course-sections/:sectionId/students-with-grades', academicController.getStudentsWithGrades);
+router.get('/course-sections/:sectionId/students', academicController.getStudentsInSection);
 router.post('/course-sections/:sectionId/students', academicController.addStudentToSection);
 router.post('/course-sections/:sectionId/students/bulk', academicController.bulkAddStudentsToSection);
 router.delete('/course-sections/:sectionId/students/:studentId', academicController.removeStudentFromSection);
