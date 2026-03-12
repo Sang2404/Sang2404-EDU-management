@@ -17,7 +17,12 @@ export default defineConfig({
     // })
   ],
   server: {
-    port: 3000,
+    port: 5173,
+    hmr: {
+      host: 'localhost',
+      port: 5173,
+      protocol: 'ws'
+    }
   },
   build: {
     // Minification
