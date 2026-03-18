@@ -1089,7 +1089,9 @@ exports.getStudentsInSection = async (req, res) => {
 exports.getStudentsWithGrades = async (req, res) => {
   try {
     const { sectionId } = req.params;
+    console.log('DEBUG: getStudentsWithGrades called for section:', sectionId);
     
+    // Use a single query with proper JOIN to ensure we get the latest data
     const query = `
       SELECT 
         s.student_id,
@@ -1110,12 +1112,13 @@ exports.getStudentsWithGrades = async (req, res) => {
       JOIN students s ON ss.student_id = s.student_id
       JOIN users u ON s.user_id = u.user_id
       LEFT JOIN classes c ON s.class_id = c.class_id
-      LEFT JOIN grades g ON ss.section_id = g.section_id AND ss.student_id = g.student_id
+      LEFT JOIN grades g ON g.section_id = ss.section_id AND g.student_id = s.student_id
       WHERE ss.section_id = $1
       ORDER BY s.student_id
     `;
     
     const result = await pool.query(query, [sectionId]);
+    console.log('DEBUG: getStudentsWithGrades raw result:', result.rows);
     
     // Format response with default values for missing grades
     const students = result.rows.map(row => ({
@@ -1126,15 +1129,16 @@ exports.getStudentsWithGrades = async (req, res) => {
       class_name: row.class_name,
       registered_at: row.registered_at,
       grade_id: row.grade_id,
-      attendance: row.attendance,
-      midterm: row.midterm,
-      final: row.final,
-      total_10: row.total_10,
-      total_4: row.total_4,
+      attendance: row.attendance ? parseFloat(row.attendance) : null,
+      midterm: row.midterm ? parseFloat(row.midterm) : null,
+      final: row.final ? parseFloat(row.final) : null,
+      total_10: row.total_10 ? parseFloat(row.total_10) : null,
+      total_4: row.total_4 ? parseFloat(row.total_4) : null,
       grade_char: row.grade_char,
       status: row.status || 'DRAFT'
     }));
     
+    console.log('DEBUG: getStudentsWithGrades final response:', students);
     res.json(students);
   } catch (error) {
     console.error('Error getting students with grades:', error);

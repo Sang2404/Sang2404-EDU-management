@@ -42,3 +42,4 @@ Thumbs.db
 # Test files (optional - keep if you want to share tests)
 # *.test.js
 # *.spec.js
+node_modules

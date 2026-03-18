@@ -3,6 +3,7 @@ const router = express.Router();
 const adminController = require('../controllers/adminController');
 
 router.get('/grades/pending', adminController.getPendingGrades);
+router.get('/sections/:sectionId/grades/status', adminController.checkGradeStatus);
 router.post('/sections/:sectionId/grades/approve', adminController.approveGrades);
 router.post('/sections/:sectionId/grades/reject', adminController.rejectGrades);
 router.post('/grades/bulk-approve', adminController.bulkApproveGrades);

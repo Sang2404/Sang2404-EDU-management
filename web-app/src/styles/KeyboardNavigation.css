@@ -1,0 +1,186 @@
+/* Keyboard Navigation Styles */
+
+/* Focus indicators for better accessibility */
+*:focus {
+  outline: 2px solid #1890ff;
+  outline-offset: 2px;
+}
+
+/* Skip to main content link */
+.skip-link {
+  position: absolute;
+  top: -40px;
+  left: 6px;
+  background: #1890ff;
+  color: white;
+  padding: 8px;
+  text-decoration: none;
+  border-radius: 4px;
+  z-index: 1000;
+  transition: top 0.3s;
+}
+
+.skip-link:focus {
+  top: 6px;
+}
+
+/* Focus visible for buttons */
+button:focus-visible,
+.ant-btn:focus-visible {
+  outline: 2px solid #1890ff;
+  outline-offset: 2px;
+}
+
+/* Focus visible for form inputs */
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible,
+.ant-input:focus-visible,
+.ant-select:focus-visible {
+  outline: 2px solid #1890ff;
+  outline-offset: 2px;
+}
+
+/* Focus visible for links */
+a:focus-visible {
+  outline: 2px solid #1890ff;
+  outline-offset: 2px;
+  text-decoration: underline;
+}
+
+/* Focus visible for table cells */
+td:focus-visible,
+th:focus-visible {
+  outline: 2px solid #1890ff;
+  outline-offset: -2px;
+}
+
+/* Focus visible for menu items */
+.ant-menu-item:focus-visible,
+.ant-dropdown-menu-item:focus-visible {
+  outline: 2px solid #1890ff;
+  outline-offset: -2px;
+}
+
+/* Focus visible for tabs */
+.ant-tabs-tab:focus-visible {
+  outline: 2px solid #1890ff;
+  outline-offset: 2px;
+}
+
+/* Focus visible for cards */
+.ant-card:focus-visible {
+  outline: 2px solid #1890ff;
+  outline-offset: 2px;
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+  *:focus {
+    outline: 3px solid;
+    outline-offset: 2px;
+  }
+}
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+  .skip-link {
+    transition: none;
+  }
+  
+  * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* Focus management for modals */
+.ant-modal:focus-within {
+  outline: none;
+}
+
+.ant-modal-content:focus {
+  outline: 2px solid #1890ff;
+  outline-offset: -2px;
+}
+
+/* Keyboard navigation helpers */
+.keyboard-nav-helper {
+  position: absolute;
+  left: -10000px;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+}
+
+.keyboard-nav-helper:focus {
+  position: static;
+  width: auto;
+  height: auto;
+  overflow: visible;
+  background: #1890ff;
+  color: white;
+  padding: 4px 8px;
+  border-radius: 4px;
+}
+
+/* Focus trap for modals and dropdowns */
+.focus-trap {
+  position: relative;
+}
+
+.focus-trap::before,
+.focus-trap::after {
+  content: '';
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* Ensure interactive elements are keyboard accessible */
+[role="button"]:not(button):not(input):not(select):not(textarea) {
+  cursor: pointer;
+}
+
+[role="button"]:not(button):not(input):not(select):not(textarea):focus {
+  outline: 2px solid #1890ff;
+  outline-offset: 2px;
+}
+
+/* Custom focus styles for specific components */
+.notification-bell:focus-visible {
+  outline: 2px solid #1890ff;
+  outline-offset: 2px;
+  border-radius: 50%;
+}
+
+.user-avatar:focus-visible {
+  outline: 2px solid #1890ff;
+  outline-offset: 2px;
+  border-radius: 50%;
+}
+
+/* Focus styles for data tables */
+.ant-table-tbody > tr:focus-within {
+  background-color: #f0f8ff;
+}
+
+.ant-table-tbody > tr > td:focus {
+  background-color: #e6f7ff;
+}
+
+/* Focus styles for form validation */
+.ant-form-item-has-error input:focus,
+.ant-form-item-has-error textarea:focus,
+.ant-form-item-has-error select:focus {
+  outline-color: #ff4d4f;
+}
+
+.ant-form-item-has-success input:focus,
+.ant-form-item-has-success textarea:focus,
+.ant-form-item-has-success select:focus {
+  outline-color: #52c41a;
+}

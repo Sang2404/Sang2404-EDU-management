@@ -40,17 +40,79 @@ const GradeApprovalPage = () => {
   const [bulkRejectForm] = Form.useForm();
 
   useEffect(() => {
-    fetchPendingGrades();
+    // Force refresh with cache busting when component mounts
+    const fetchWithCacheBusting = async () => {
+      setLoading(true);
+      try {
+        console.log('🔄 Component mounted - fetching pending grades with cache busting...');
+        
+        // Clear current state first
+        setPendingSections([]);
+        setSelectedRowKeys([]);
+        
+        // Add timestamp to prevent caching
+        const timestamp = Date.now();
+        const response = await axios.get(`/admin/grades/pending?_t=${timestamp}`);
+        console.log('📊 Fresh pending grades response:', response.data);
+        
+        // Force state update
+        setPendingSections([...response.data]);
+        console.log('✅ Component mounted with', response.data.length, 'sections');
+        
+      } catch (error) {
+        const errorMsg = error.response?.data?.error || error.response?.data?.message || 'Không thể tải danh sách bảng điểm chờ duyệt';
+        console.error('❌ Error fetching pending grades on mount:', errorMsg);
+        message.error(errorMsg);
+        setPendingSections([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    fetchWithCacheBusting();
+    
+    // Set up auto-refresh every 30 seconds with cache busting
+    const interval = setInterval(() => {
+      console.log('🔄 Auto-refresh triggered...');
+      fetchWithCacheBusting();
+    }, 30000);
+    
+    // Cleanup function
+    return () => {
+      console.log('🧹 Component unmounting - clearing state...');
+      clearInterval(interval);
+      setPendingSections([]);
+      setSelectedRowKeys([]);
+    };
   }, []);
 
   const fetchPendingGrades = async () => {
     setLoading(true);
     try {
-      const response = await axios.get('/admin/grades/pending');
-      setPendingSections(response.data);
+      console.log('🔄 Fetching pending grades with cache busting...');
+      
+      // Clear current state first to force re-render
+      setPendingSections([]);
+      
+      // Add timestamp to prevent caching
+      const timestamp = Date.now();
+      const response = await axios.get(`/admin/grades/pending?_t=${timestamp}`);
+      console.log('📊 Pending grades response:', response.data);
+      
+      // Force state update
+      setPendingSections([...response.data]);
+      
+      console.log('✅ Updated pending sections state:', response.data.length, 'sections');
+      
+      // Also clear selected rows when refreshing
+      setSelectedRowKeys([]);
+      
     } catch (error) {
       const errorMsg = error.response?.data?.error || error.response?.data?.message || 'Không thể tải danh sách bảng điểm chờ duyệt';
+      console.error('❌ Error fetching pending grades:', errorMsg);
       message.error(errorMsg);
+      // Clear state on error too
+      setPendingSections([]);
     } finally {
       setLoading(false);
     }
@@ -94,26 +156,84 @@ const GradeApprovalPage = () => {
 
   const confirmApprove = async () => {
     try {
-      await axios.post(`/admin/sections/${selectedSection.section_id}/grades/approve`);
+      console.log('🟢 Approving grades for section:', selectedSection.section_id);
+      const response = await axios.post(`/admin/sections/${selectedSection.section_id}/grades/approve`);
+      
+      console.log('✅ Approval successful:', response.data);
       message.success('Phê duyệt bảng điểm thành công');
+      
+      // Close modal first
       setApproveModalVisible(false);
-      fetchPendingGrades();
+      
+      console.log('🔄 Refreshing pending grades after approval...');
+      
+      // Force refresh with cache busting
+      const timestamp = Date.now();
+      const refreshResponse = await axios.get(`/admin/grades/pending?_t=${timestamp}`);
+      console.log('🔄 Force refresh response:', refreshResponse.data);
+      
+      // Clear and update state
+      setPendingSections([]);
+      setTimeout(() => {
+        setPendingSections([...refreshResponse.data]);
+        console.log('✅ State forcefully updated:', refreshResponse.data.length, 'sections');
+      }, 100);
+      
+      // Also clear any selected rows
+      setSelectedRowKeys([]);
+      
     } catch (error) {
+      console.error('❌ Approve error:', error.response?.data);
       message.error(error.response?.data?.error || 'Không thể phê duyệt bảng điểm');
     }
   };
 
   const confirmReject = async (values) => {
     try {
-      await axios.post(`/admin/sections/${selectedSection.section_id}/grades/reject`, {
+      console.log('🔴 Rejecting grades for section:', selectedSection.section_id, 'with reason:', values.reason);
+      const response = await axios.post(`/admin/sections/${selectedSection.section_id}/grades/reject`, {
         reason: values.reason
       });
+      
+      console.log('✅ Rejection successful:', response.data);
       message.success('Từ chối bảng điểm thành công');
+      
+      // Close modal and reset form first
       setRejectModalVisible(false);
       rejectForm.resetFields();
-      fetchPendingGrades();
+      
+      console.log('🔄 Refreshing pending grades after rejection...');
+      
+      // Force refresh with cache busting
+      const timestamp = Date.now();
+      const refreshResponse = await axios.get(`/admin/grades/pending?_t=${timestamp}`);
+      console.log('🔄 Force refresh response:', refreshResponse.data);
+      
+      // Clear and update state
+      setPendingSections([]);
+      setTimeout(() => {
+        setPendingSections([...refreshResponse.data]);
+        console.log('✅ State forcefully updated:', refreshResponse.data.length, 'sections');
+      }, 100);
+      
+      // Also clear any selected rows
+      setSelectedRowKeys([]);
+      
     } catch (error) {
-      message.error(error.response?.data?.error || 'Không thể từ chối bảng điểm');
+      console.error('❌ Reject error:', error.response?.data);
+      const errorMessage = error.response?.data?.error || 'Không thể từ chối bảng điểm';
+      message.error(errorMessage);
+      
+      // If the error is about status, show more details
+      if (error.response?.data?.current_status) {
+        console.log('📊 Current grade status:', error.response.data.current_status);
+        const statusInfo = error.response.data.current_status
+          .map(s => `${s.status}: ${s.count}`)
+          .join(', ');
+        message.warning(`Trạng thái hiện tại: ${statusInfo}`);
+      }
+      
+      // Don't close modal on error so user can try again or see the error
     }
   };
 
@@ -142,6 +262,7 @@ const GradeApprovalPage = () => {
         return section?.section_id;
       }).filter(Boolean);
 
+      console.log('🟢 Bulk approving sections:', sectionIds);
       await axios.post('/admin/grades/bulk-approve', {
         section_ids: sectionIds
       });
@@ -149,8 +270,11 @@ const GradeApprovalPage = () => {
       message.success(`Phê duyệt ${sectionIds.length} bảng điểm thành công`);
       setBulkApproveModalVisible(false);
       setSelectedRowKeys([]);
-      fetchPendingGrades();
+      console.log('🔄 Refreshing pending grades after bulk approval...');
+      // Refresh the pending grades list
+      await fetchPendingGrades();
     } catch (error) {
+      console.error('❌ Bulk approve error:', error.response?.data);
       message.error(error.response?.data?.error || 'Không thể phê duyệt bảng điểm');
     } finally {
       setBulkLoading(false);
@@ -165,6 +289,7 @@ const GradeApprovalPage = () => {
         return section?.section_id;
       }).filter(Boolean);
 
+      console.log('🔴 Bulk rejecting sections:', sectionIds, 'with reason:', values.reason);
       await axios.post('/admin/grades/bulk-reject', {
         section_ids: sectionIds,
         reason: values.reason
@@ -174,8 +299,11 @@ const GradeApprovalPage = () => {
       setBulkRejectModalVisible(false);
       bulkRejectForm.resetFields();
       setSelectedRowKeys([]);
-      fetchPendingGrades();
+      console.log('🔄 Refreshing pending grades after bulk rejection...');
+      // Refresh the pending grades list
+      await fetchPendingGrades();
     } catch (error) {
+      console.error('❌ Bulk reject error:', error.response?.data);
       message.error(error.response?.data?.error || 'Không thể từ chối bảng điểm');
     } finally {
       setBulkLoading(false);
@@ -292,33 +420,45 @@ const GradeApprovalPage = () => {
     },
     {
       title: 'Họ và tên',
-      dataIndex: 'student_name',
-      key: 'student_name',
+      dataIndex: 'full_name',
+      key: 'full_name',
       width: 200
     },
     {
       title: 'Chuyên cần',
-      dataIndex: 'attendance_score',
-      key: 'attendance_score',
+      dataIndex: 'attendance',
+      key: 'attendance',
       width: 100,
       align: 'center',
-      render: (score) => score?.toFixed(1) || '-'
+      render: (score) => {
+        if (score === null || score === undefined) return '-';
+        const num = Number(score);
+        return isNaN(num) ? '-' : num.toFixed(1);
+      }
     },
     {
       title: 'Giữa kỳ',
-      dataIndex: 'midterm_score',
-      key: 'midterm_score',
+      dataIndex: 'midterm',
+      key: 'midterm',
       width: 100,
       align: 'center',
-      render: (score) => score?.toFixed(1) || '-'
+      render: (score) => {
+        if (score === null || score === undefined) return '-';
+        const num = Number(score);
+        return isNaN(num) ? '-' : num.toFixed(1);
+      }
     },
     {
       title: 'Cuối kỳ',
-      dataIndex: 'final_score',
-      key: 'final_score',
+      dataIndex: 'final',
+      key: 'final',
       width: 100,
       align: 'center',
-      render: (score) => score?.toFixed(1) || '-'
+      render: (score) => {
+        if (score === null || score === undefined) return '-';
+        const num = Number(score);
+        return isNaN(num) ? '-' : num.toFixed(1);
+      }
     },
     {
       title: 'Tổng (10)',
@@ -326,7 +466,11 @@ const GradeApprovalPage = () => {
       key: 'total_10',
       width: 100,
       align: 'center',
-      render: (score) => <strong>{score?.toFixed(2) || '-'}</strong>
+      render: (score) => {
+        if (score === null || score === undefined) return '-';
+        const num = Number(score);
+        return isNaN(num) ? '-' : <strong>{num.toFixed(2)}</strong>;
+      }
     },
     {
       title: 'Tổng (4)',
@@ -334,7 +478,11 @@ const GradeApprovalPage = () => {
       key: 'total_4',
       width: 100,
       align: 'center',
-      render: (score) => score?.toFixed(1) || '-'
+      render: (score) => {
+        if (score === null || score === undefined) return '-';
+        const num = Number(score);
+        return isNaN(num) ? '-' : num.toFixed(1);
+      }
     },
     {
       title: 'Xếp loại',
@@ -378,6 +526,15 @@ const GradeApprovalPage = () => {
           <FileTextOutlined />
           <span>Duyệt Bảng điểm</span>
         </Space>
+      }
+      extra={
+        <Button 
+          onClick={fetchPendingGrades} 
+          loading={loading}
+          icon={<FileTextOutlined />}
+        >
+          Làm mới
+        </Button>
       }
     >
       {selectedRowKeys.length > 0 && (

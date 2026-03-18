@@ -4,9 +4,14 @@ exports.approveGrades = async (req, res) => {
   try {
     const { sectionId } = req.params;
     
-    // Check if section exists
+    // Check if section exists and get lecturer info
     const sectionCheck = await pool.query(
-      'SELECT section_id FROM course_sections WHERE section_id = $1',
+      `SELECT cs.section_id, cs.section_code, cs.lecturer_id, s.subject_name, u.full_name as lecturer_name, u.user_id as lecturer_user_id
+       FROM course_sections cs
+       JOIN subjects s ON cs.subject_id = s.subject_id
+       JOIN lecturers l ON cs.lecturer_id = l.lecturer_id
+       JOIN users u ON l.user_id = u.user_id
+       WHERE cs.section_id = $1`,
       [sectionId]
     );
     
@@ -14,17 +19,26 @@ exports.approveGrades = async (req, res) => {
       return res.status(404).json({ error: 'Course section not found' });
     }
     
+    const sectionInfo = sectionCheck.rows[0];
+    
     // Check if grades are in SUBMITTED status
-    const submittedGrades = await pool.query(
-      `SELECT COUNT(*) as count FROM grades 
-       WHERE section_id = $1 AND status = 'SUBMITTED'`,
+    const gradesStatus = await pool.query(
+      `SELECT status, COUNT(*) as count FROM grades 
+       WHERE section_id = $1 
+       GROUP BY status`,
       [sectionId]
     );
-    const submittedCount = parseInt(submittedGrades.rows[0].count);
+    
+    console.log('DEBUG: Grades status for section', sectionId, ':', gradesStatus.rows);
+    
+    const submittedGrades = gradesStatus.rows.find(row => row.status === 'SUBMITTED');
+    const submittedCount = submittedGrades ? parseInt(submittedGrades.count) : 0;
     
     if (submittedCount === 0) {
+      // Check what statuses exist
+      const statusList = gradesStatus.rows.map(row => `${row.status}: ${row.count}`).join(', ');
       return res.status(400).json({ 
-        error: 'No grades in SUBMITTED status found. Grades must be submitted before approval.' 
+        error: `Không có bảng điểm nào ở trạng thái chờ duyệt. Trạng thái hiện tại: ${statusList || 'Không có điểm nào'}` 
       });
     }
     
@@ -37,16 +51,69 @@ exports.approveGrades = async (req, res) => {
       [sectionId]
     );
     
+    // Create notification for lecturer
+    const notificationMessage = `Bảng điểm lớp ${sectionInfo.section_code} (${sectionInfo.subject_name}) đã được phê duyệt và công bố cho sinh viên.`;
+    
+    await pool.query(
+      `INSERT INTO notifications (user_id, title, message, is_read, created_at)
+       VALUES ($1, $2, $3, $4, NOW())`,
+      [
+        sectionInfo.lecturer_user_id,
+        'Bảng điểm đã được phê duyệt',
+        notificationMessage,
+        false
+      ]
+    );
+    
+    console.log(`📧 Notification sent to lecturer ${sectionInfo.lecturer_name} for approved grades in section ${sectionInfo.section_code}`);
+    
     res.json({
       message: 'Phê duyệt bảng điểm thành công',
       data: {
         section_id: parseInt(sectionId),
         grades_approved: updateResult.rows.length,
-        status: 'APPROVED'
+        status: 'APPROVED',
+        lecturer_notified: true
       }
     });
   } catch (error) {
     console.error('Error approving grades:', error);
+    res.status(500).json({ error: error.message });
+  }
+};
+
+// Debug endpoint to check grade status
+exports.checkGradeStatus = async (req, res) => {
+  try {
+    const { sectionId } = req.params;
+    
+    const gradesStatus = await pool.query(
+      `SELECT 
+        g.status, 
+        COUNT(*) as count,
+        STRING_AGG(DISTINCT g.student_id, ', ') as student_ids
+       FROM grades g
+       WHERE g.section_id = $1 
+       GROUP BY g.status
+       ORDER BY g.status`,
+      [sectionId]
+    );
+    
+    const sectionInfo = await pool.query(
+      `SELECT cs.section_code, s.subject_name 
+       FROM course_sections cs
+       JOIN subjects s ON cs.subject_id = s.subject_id
+       WHERE cs.section_id = $1`,
+      [sectionId]
+    );
+    
+    res.json({
+      section_id: sectionId,
+      section_info: sectionInfo.rows[0] || null,
+      grade_status: gradesStatus.rows
+    });
+  } catch (error) {
+    console.error('Error checking grade status:', error);
     res.status(500).json({ error: error.message });
   }
 };
@@ -56,9 +123,20 @@ exports.rejectGrades = async (req, res) => {
     const { sectionId } = req.params;
     const { reason } = req.body;
     
-    // Check if section exists
+    console.log('DEBUG: rejectGrades called with sectionId:', sectionId, 'reason:', reason);
+    
+    if (!reason || reason.trim().length < 10) {
+      return res.status(400).json({ error: 'Reason must be at least 10 characters long' });
+    }
+    
+    // Check if section exists and get lecturer info
     const sectionCheck = await pool.query(
-      'SELECT section_id FROM course_sections WHERE section_id = $1',
+      `SELECT cs.section_id, cs.section_code, cs.lecturer_id, s.subject_name, u.full_name as lecturer_name, u.user_id as lecturer_user_id
+       FROM course_sections cs
+       JOIN subjects s ON cs.subject_id = s.subject_id
+       JOIN lecturers l ON cs.lecturer_id = l.lecturer_id
+       JOIN users u ON l.user_id = u.user_id
+       WHERE cs.section_id = $1`,
       [sectionId]
     );
     
@@ -66,19 +144,31 @@ exports.rejectGrades = async (req, res) => {
       return res.status(404).json({ error: 'Course section not found' });
     }
     
+    const sectionInfo = sectionCheck.rows[0];
+    console.log('DEBUG: Section info:', sectionInfo);
+    
     // Check if grades are in SUBMITTED status
-    const submittedGrades = await pool.query(
-      `SELECT COUNT(*) as count FROM grades 
-       WHERE section_id = $1 AND status = 'SUBMITTED'`,
+    const gradesStatus = await pool.query(
+      `SELECT status, COUNT(*) as count FROM grades 
+       WHERE section_id = $1 
+       GROUP BY status`,
       [sectionId]
     );
-    const submittedCount = parseInt(submittedGrades.rows[0].count);
+    
+    console.log('DEBUG: Grades status for section', sectionId, ':', gradesStatus.rows);
+    
+    const submittedGrades = gradesStatus.rows.find(row => row.status === 'SUBMITTED');
+    const submittedCount = submittedGrades ? parseInt(submittedGrades.count) : 0;
     
     if (submittedCount === 0) {
+      // Check what statuses exist
+      const statusList = gradesStatus.rows.map(row => `${row.status}: ${row.count}`).join(', ');
       return res.status(400).json({ 
-        error: 'No grades in SUBMITTED status found. Only submitted grades can be rejected.' 
+        error: `Không có bảng điểm nào ở trạng thái chờ duyệt. Trạng thái hiện tại: ${statusList || 'Không có điểm nào'}` 
       });
     }
+    
+    console.log('DEBUG: Found', submittedCount, 'submitted grades, proceeding with rejection...');
     
     // Update all SUBMITTED grades back to DRAFT
     const updateResult = await pool.query(
@@ -89,23 +179,48 @@ exports.rejectGrades = async (req, res) => {
       [sectionId]
     );
     
+    console.log('DEBUG: Updated', updateResult.rows.length, 'grades back to DRAFT');
+    
+    // Create notification for lecturer (without 'type' column)
+    const notificationMessage = `Bảng điểm lớp ${sectionInfo.section_code} (${sectionInfo.subject_name}) đã bị từ chối. Lý do: ${reason}`;
+    
+    try {
+      await pool.query(
+        `INSERT INTO notifications (user_id, title, message, is_read, created_at)
+         VALUES ($1, $2, $3, $4, NOW())`,
+        [
+          sectionInfo.lecturer_user_id,
+          'Bảng điểm bị từ chối',
+          notificationMessage,
+          false
+        ]
+      );
+      console.log('DEBUG: Notification sent to lecturer', sectionInfo.lecturer_name);
+    } catch (notificationError) {
+      console.error('DEBUG: Failed to send notification:', notificationError);
+      // Continue with the response even if notification fails
+    }
+    
     res.json({
       message: 'Từ chối bảng điểm thành công',
       data: {
         section_id: parseInt(sectionId),
         grades_rejected: updateResult.rows.length,
         status: 'DRAFT',
-        reason: reason || 'No reason provided'
+        reason: reason,
+        lecturer_notified: true
       }
     });
   } catch (error) {
-    console.error('Error rejecting grades:', error);
+    console.error('❌ ERROR in rejectGrades:', error);
+    console.error('❌ Error stack:', error.stack);
     res.status(500).json({ error: error.message });
   }
 };
 
 exports.getPendingGrades = async (req, res) => {
   try {
+    console.log('DEBUG: getPendingGrades called');
     const query = `
       SELECT 
         cs.section_id,
@@ -126,6 +241,8 @@ exports.getPendingGrades = async (req, res) => {
     `;
     
     const result = await pool.query(query);
+    console.log('DEBUG: getPendingGrades result:', result.rows.length, 'sections found');
+    console.log('DEBUG: Pending sections:', result.rows);
     res.json(result.rows);
   } catch (error) {
     console.error('Error getting pending grades:', error);
@@ -1225,8 +1342,8 @@ exports.bulkRejectGrades = async (req, res) => {
       return res.status(400).json({ error: 'section_ids phải là một mảng không rỗng' });
     }
     
-    if (!reason || reason.trim().length === 0) {
-      return res.status(400).json({ error: 'reason là trường bắt buộc' });
+    if (!reason || reason.trim().length < 10) {
+      return res.status(400).json({ error: 'Lý do từ chối phải có ít nhất 10 ký tự' });
     }
     
     const results = {
@@ -1236,9 +1353,14 @@ exports.bulkRejectGrades = async (req, res) => {
     
     for (const sectionId of section_ids) {
       try {
-        // Check if section exists
+        // Check if section exists and get lecturer info
         const sectionCheck = await pool.query(
-          'SELECT section_id FROM course_sections WHERE section_id = $1',
+          `SELECT cs.section_id, cs.section_code, cs.lecturer_id, s.subject_name, u.full_name as lecturer_name, u.user_id as lecturer_user_id
+           FROM course_sections cs
+           JOIN subjects s ON cs.subject_id = s.subject_id
+           JOIN lecturers l ON cs.lecturer_id = l.lecturer_id
+           JOIN users u ON l.user_id = u.user_id
+           WHERE cs.section_id = $1`,
           [sectionId]
         );
         
@@ -1249,6 +1371,8 @@ exports.bulkRejectGrades = async (req, res) => {
           });
           continue;
         }
+        
+        const sectionInfo = sectionCheck.rows[0];
         
         // Check if grades are in SUBMITTED status
         const submittedGrades = await pool.query(
@@ -1275,9 +1399,24 @@ exports.bulkRejectGrades = async (req, res) => {
           [sectionId]
         );
         
+        // Create notification for lecturer
+        const notificationMessage = `Bảng điểm lớp ${sectionInfo.section_code} (${sectionInfo.subject_name}) đã bị từ chối. Lý do: ${reason}`;
+        
+        await pool.query(
+          `INSERT INTO notifications (user_id, title, message, is_read, created_at)
+           VALUES ($1, $2, $3, $4, NOW())`,
+          [
+            sectionInfo.lecturer_user_id,
+            'Bảng điểm bị từ chối',
+            notificationMessage,
+            false
+          ]
+        );
+        
         results.success.push({
           section_id: sectionId,
-          grades_rejected: updateResult.rows.length
+          grades_rejected: updateResult.rows.length,
+          lecturer_notified: true
         });
         
       } catch (error) {

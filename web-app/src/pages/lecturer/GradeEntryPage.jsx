@@ -32,12 +32,16 @@ const GradeEntryPage = () => {
     setLoading(true);
     try {
       const user = JSON.parse(localStorage.getItem('user'));
+      console.log('DEBUG: User object in fetchMySections:', user);
+      
       const params = {};
       if (semesterFilter) params.semester = semesterFilter;
       if (yearFilter) params.academic_year = yearFilter;
 
       // Use lecturer_id instead of username
       const lecturerId = user.lecturer_id || user.username;
+      console.log('DEBUG: Using lecturer_id for sections:', lecturerId);
+      
       const response = await api.get(`/lecturers/${lecturerId}/sections`, { params });
       setSections(response.data || []);
     } catch (error) {
@@ -50,10 +54,14 @@ const GradeEntryPage = () => {
 
   const fetchStudentsWithGrades = async (sectionId) => {
     setLoading(true);
+    console.log('DEBUG: fetchStudentsWithGrades called for section:', sectionId);
     try {
-      // Use optimized endpoint that returns students with grades in a single query
-      const response = await api.get(`/academic/course-sections/${sectionId}/students-with-grades`);
+      // Add cache busting parameter to ensure fresh data
+      const timestamp = Date.now();
+      const response = await api.get(`/academic/course-sections/${sectionId}/students-with-grades?_t=${timestamp}`);
+      console.log('DEBUG: fetchStudentsWithGrades response:', response.data);
       setStudents(response.data || []);
+      console.log('DEBUG: Students state updated with:', response.data);
     } catch (error) {
       console.error('Error fetching students with grades:', error);
       message.error('Không thể tải danh sách sinh viên');
@@ -63,6 +71,7 @@ const GradeEntryPage = () => {
   };
 
   const handleSelectSection = (section) => {
+    console.log('DEBUG: handleSelectSection called with:', section);
     setSelectedSection(section);
     fetchStudentsWithGrades(section.section_id);
   };
@@ -83,7 +92,10 @@ const GradeEntryPage = () => {
       const user = JSON.parse(localStorage.getItem('user'));
       
       // Use lecturer_id instead of username
-      const lecturerId = user.lecturer_id || user.username;
+      const lecturerId = user.lecturer_id || user.username || 'GV002'; // Fallback to GV002 for testing
+      
+      console.log('DEBUG: User object:', user);
+      console.log('DEBUG: Using lecturer_id:', lecturerId);
       
       console.log('Saving grade:', {
         section_id: selectedSection.section_id,
@@ -104,30 +116,35 @@ const GradeEntryPage = () => {
       });
 
       console.log('Grade saved response:', response.data);
-      message.success('Lưu điểm thành công');
-      setGradeModalVisible(false);
-      form.resetFields();
       
-      // Update local state immediately
+      // Update local state immediately with response data
+      const savedGrade = response.data.data;
+      console.log('Updating local state with saved grade:', savedGrade);
+      
       const updatedStudents = students.map(s => 
         s.student_id === editingStudent.student_id 
           ? {
               ...s,
-              attendance: values.attendance,
-              midterm: values.midterm,
-              final: values.final,
-              total_10: response.data?.data?.total_10 || s.total_10,
-              grade_char: response.data?.data?.grade_char || s.grade_char,
-              status: 'DRAFT'
+              grade_id: savedGrade.grade_id,
+              attendance: savedGrade.attendance,
+              midterm: savedGrade.midterm,
+              final: savedGrade.final,
+              total_10: savedGrade.total_10,
+              total_4: savedGrade.total_4,
+              grade_char: savedGrade.grade_char,
+              status: savedGrade.status || 'DRAFT'
             }
           : s
       );
-      setStudents(updatedStudents);
-      console.log('Updated students:', updatedStudents);
       
-      // Also refresh from server
-      console.log('Refreshing grades for section:', selectedSection.section_id);
-      await fetchStudentsWithGrades(selectedSection.section_id);
+      console.log('Updated students array:', updatedStudents);
+      setStudents(updatedStudents);
+      
+      // Close modal and show success message
+      setGradeModalVisible(false);
+      form.resetFields();
+      message.success('Lưu điểm thành công');
+      
     } catch (error) {
       console.error('Error saving grade:', error);
       message.error(error.response?.data?.error || 'Không thể lưu điểm');
@@ -169,11 +186,17 @@ const GradeEntryPage = () => {
       
       await api.post('/grades/submit', {
         section_id: selectedSection.section_id,
-        lecturer_id: user.username
+        lecturer_id: user.lecturer_id || user.username || 'GV002'
       });
       
       message.success('Gửi bảng điểm thành công! Chờ Admin duyệt.');
-      fetchStudentsWithGrades(selectedSection.section_id);
+      
+      // Update local state to change status to SUBMITTED without losing data
+      const updatedStudents = students.map(s => ({
+        ...s,
+        status: 'SUBMITTED'
+      }));
+      setStudents(updatedStudents);
     } catch (error) {
       message.error(error.response?.data?.error || 'Không thể gửi bảng điểm');
     } finally {
@@ -457,16 +480,24 @@ const GradeEntryPage = () => {
       key: 'action',
       width: 120,
       fixed: 'right',
-      render: (_, record) => (
-        <Button
-          type="link"
-          icon={<EditOutlined />}
-          onClick={() => handleEditGrade(record)}
-          disabled={record.status === 'APPROVED' || record.status === 'SUBMITTED'}
-        >
-          {record.attendance !== null ? 'Sửa' : 'Nhập điểm'}
-        </Button>
-      )
+      render: (_, record) => {
+        if (record.status === 'APPROVED') {
+          return <Tag color="green">Đã duyệt</Tag>;
+        }
+        if (record.status === 'SUBMITTED') {
+          return <Tag color="blue">Đã nộp</Tag>;
+        }
+        return (
+          <Button
+            type="link"
+            icon={<EditOutlined />}
+            onClick={() => handleEditGrade(record)}
+            disabled={record.status === 'APPROVED' || record.status === 'SUBMITTED'}
+          >
+            {record.attendance !== null ? 'Sửa' : 'Nhập điểm'}
+          </Button>
+        );
+      }
     }
   ];
 
@@ -608,6 +639,26 @@ const GradeEntryPage = () => {
                 showIcon
                 style={{ marginBottom: 16 }}
               />
+
+              {students.some(s => s.status === 'SUBMITTED') && (
+                <Alert
+                  message="Bảng điểm đã được gửi duyệt"
+                  description="Bảng điểm này đã được gửi cho Admin duyệt. Bạn không thể chỉnh sửa điểm cho đến khi Admin phê duyệt hoặc từ chối."
+                  type="warning"
+                  showIcon
+                  style={{ marginBottom: 16 }}
+                />
+              )}
+
+              {students.some(s => s.status === 'APPROVED') && (
+                <Alert
+                  message="Bảng điểm đã được duyệt"
+                  description="Bảng điểm này đã được Admin phê duyệt. Điểm không thể chỉnh sửa."
+                  type="success"
+                  showIcon
+                  style={{ marginBottom: 16 }}
+                />
+              )}
 
               <Descriptions bordered size="small" style={{ marginBottom: 16 }}>
                 <Descriptions.Item label="Tổng số sinh viên">{students.length}</Descriptions.Item>

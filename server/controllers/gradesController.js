@@ -47,48 +47,71 @@ exports.enterGrade = async (req, res) => {
     const { section_id, student_id, attendance, midterm, final, lecturer_id } = req.body;
     
     console.log('DEBUG: enterGrade called with:', { section_id, student_id, attendance, midterm, final, lecturer_id });
+    console.log('DEBUG: lecturer_id type:', typeof lecturer_id);
     
     // Validate required fields
+    console.log('DEBUG: Starting validation...');
     if (!section_id) {
+      console.log('DEBUG: Missing section_id');
       return res.status(400).json({ error: 'section_id is required' });
     }
     if (!student_id) {
+      console.log('DEBUG: Missing student_id');
       return res.status(400).json({ error: 'student_id is required' });
     }
     if (!lecturer_id) {
+      console.log('DEBUG: Missing lecturer_id');
       return res.status(400).json({ error: 'lecturer_id is required' });
     }
+    console.log('DEBUG: Basic validation passed');
     
     // Validate grade values
+    console.log('DEBUG: Starting grade validation...');
     if (attendance !== null && attendance !== undefined) {
       if (typeof attendance !== 'number' || attendance < 0 || attendance > 10) {
+        console.log('DEBUG: Invalid attendance:', attendance, typeof attendance);
         return res.status(400).json({ error: 'attendance must be between 0 and 10' });
       }
     }
     if (midterm !== null && midterm !== undefined) {
       if (typeof midterm !== 'number' || midterm < 0 || midterm > 10) {
+        console.log('DEBUG: Invalid midterm:', midterm, typeof midterm);
         return res.status(400).json({ error: 'midterm must be between 0 and 10' });
       }
     }
     if (final !== null && final !== undefined) {
       if (typeof final !== 'number' || final < 0 || final > 10) {
+        console.log('DEBUG: Invalid final:', final, typeof final);
         return res.status(400).json({ error: 'final must be between 0 and 10' });
       }
     }
+    console.log('DEBUG: Grade validation passed');
     
     // Verify lecturer is assigned to section
+    console.log('DEBUG: Checking lecturer assignment for section:', section_id);
     const sectionCheck = await pool.query(
       'SELECT lecturer_id FROM course_sections WHERE section_id = $1',
       [section_id]
     );
     
+    console.log('DEBUG: Section check result:', sectionCheck.rows);
+    
     if (sectionCheck.rows.length === 0) {
+      console.log('DEBUG: Course section not found');
       return res.status(404).json({ error: 'Course section not found' });
     }
     
-    if (sectionCheck.rows[0].lecturer_id !== lecturer_id) {
+    const dbLecturerId = sectionCheck.rows[0].lecturer_id;
+    console.log('DEBUG: DB lecturer_id:', dbLecturerId, 'type:', typeof dbLecturerId);
+    console.log('DEBUG: Request lecturer_id:', lecturer_id, 'type:', typeof lecturer_id);
+    console.log('DEBUG: Comparison result:', dbLecturerId !== lecturer_id);
+    
+    if (dbLecturerId !== lecturer_id) {
+      console.log('DEBUG: Lecturer not assigned to section - returning 403');
       return res.status(403).json({ error: 'You are not assigned to this course section' });
     }
+    
+    console.log('DEBUG: Lecturer verification passed');
     
     // Check student enrollment
     const enrollmentCheck = await pool.query(
@@ -106,26 +129,45 @@ exports.enterGrade = async (req, res) => {
       [section_id, student_id]
     );
     
+    console.log('DEBUG: Existing grade check:', existingGrade.rows);
+    
     if (existingGrade.rows.length > 0) {
       const status = existingGrade.rows[0].status;
-      if (status !== 'DRAFT') {
+      console.log('DEBUG: Current grade status:', status);
+      if (status === 'APPROVED') {
+        console.log('DEBUG: Returning 403 - grade is approved');
         return res.status(403).json({ 
-          error: `Cannot modify grades with status: ${status}. Grades must be in DRAFT status.` 
+          error: `Cannot modify approved grades. Current status: ${status}` 
+        });
+      }
+      if (status === 'SUBMITTED') {
+        console.log('DEBUG: Returning 403 - grade is submitted');
+        return res.status(403).json({ 
+          error: `Cannot modify submitted grades. Current status: ${status}. Please contact admin to revert to draft.` 
         });
       }
     }
     
+    console.log('DEBUG: Status check passed, proceeding with grade calculation...');
+    
     // Calculate grades if all components provided
     let total_10 = null, total_4 = null, grade_char = null;
     
+    console.log('DEBUG: Starting grade calculation...');
     if (attendance !== null && attendance !== undefined && 
         midterm !== null && midterm !== undefined && 
         final !== null && final !== undefined) {
+      console.log('DEBUG: All grade components provided, calculating...');
       const calculated = calculateGrades(attendance, midterm, final);
       total_10 = calculated.total_10;
       total_4 = calculated.total_4;
       grade_char = calculated.grade_char;
+      console.log('DEBUG: Calculated grades:', { total_10, total_4, grade_char });
+    } else {
+      console.log('DEBUG: Not all grade components provided, skipping calculation');
     }
+    
+    console.log('DEBUG: Preparing to insert/update grade...');
     
     // Insert or update grade
     const upsertQuery = `
@@ -145,19 +187,47 @@ exports.enterGrade = async (req, res) => {
       RETURNING *
     `;
     
+    console.log('DEBUG: Executing upsert query with values:', [
+      section_id, student_id, attendance, midterm, final,
+      total_10, total_4, grade_char
+    ]);
+    
     const result = await pool.query(upsertQuery, [
       section_id, student_id, attendance, midterm, final,
       total_10, total_4, grade_char
     ]);
     
+    console.log('DEBUG: Upsert query result:', result.rows);
+    
     const isNew = existingGrade.rows.length === 0;
+    console.log('DEBUG: Is new grade:', isNew);
+    
+    // Convert decimal values to numbers for frontend
+    const gradeData = result.rows[0];
+    console.log('DEBUG: Raw grade data from DB:', gradeData);
+    
+    const responseData = {
+      ...gradeData,
+      attendance: gradeData.attendance ? parseFloat(gradeData.attendance) : null,
+      midterm: gradeData.midterm ? parseFloat(gradeData.midterm) : null,
+      final: gradeData.final ? parseFloat(gradeData.final) : null,
+      total_10: gradeData.total_10 ? parseFloat(gradeData.total_10) : null,
+      total_4: gradeData.total_4 ? parseFloat(gradeData.total_4) : null
+    };
+    
+    console.log('DEBUG: Prepared response data:', responseData);
+    console.log('DEBUG: Sending response with status:', isNew ? 201 : 200);
     
     res.status(isNew ? 201 : 200).json({
       message: isNew ? 'Nhập điểm thành công' : 'Cập nhật điểm thành công',
-      data: result.rows[0]
+      data: responseData
     });
+    
+    console.log('DEBUG: Response sent successfully');
   } catch (error) {
-    console.error('Error entering grade:', error);
+    console.error('❌ ERROR in enterGrade:', error);
+    console.error('❌ Error stack:', error.stack);
+    console.error('❌ Error message:', error.message);
     res.status(500).json({ error: error.message });
   }
 };
@@ -207,6 +277,8 @@ exports.submitGradesForApproval = async (req, res) => {
   try {
     const { section_id, lecturer_id } = req.body;
     
+    console.log('DEBUG: submitGradesForApproval called with:', { section_id, lecturer_id });
+    
     if (!section_id || !lecturer_id) {
       return res.status(400).json({ error: 'section_id and lecturer_id are required' });
     }
@@ -217,13 +289,31 @@ exports.submitGradesForApproval = async (req, res) => {
       [section_id]
     );
     
+    console.log('DEBUG: Section check result:', sectionCheck.rows);
+    
     if (sectionCheck.rows.length === 0) {
+      console.log('DEBUG: Course section not found');
       return res.status(404).json({ error: 'Course section not found' });
     }
     
-    if (sectionCheck.rows[0].lecturer_id !== lecturer_id) {
-      return res.status(403).json({ error: 'You are not assigned to this course section' });
+    const dbLecturerId = sectionCheck.rows[0].lecturer_id;
+    console.log('DEBUG: DB lecturer_id:', dbLecturerId, 'type:', typeof dbLecturerId);
+    console.log('DEBUG: Request lecturer_id:', lecturer_id, 'type:', typeof lecturer_id);
+    
+    // Trim whitespace and compare as strings
+    const trimmedDbLecturerId = String(dbLecturerId).trim();
+    const trimmedRequestLecturerId = String(lecturer_id).trim();
+    
+    console.log('DEBUG: Trimmed DB lecturer_id:', `"${trimmedDbLecturerId}"`);
+    console.log('DEBUG: Trimmed Request lecturer_id:', `"${trimmedRequestLecturerId}"`);
+    console.log('DEBUG: Trimmed comparison result:', trimmedDbLecturerId === trimmedRequestLecturerId);
+    
+    if (trimmedDbLecturerId !== trimmedRequestLecturerId) {
+      console.log('DEBUG: Lecturer ID mismatch - DB:', `"${trimmedDbLecturerId}"`, 'Request:', `"${trimmedRequestLecturerId}"`);
+      return res.status(403).json({ error: `You are not assigned to this course section. Expected: ${trimmedDbLecturerId}, Got: ${trimmedRequestLecturerId}` });
     }
+    
+    console.log('DEBUG: Lecturer verification passed, checking grades...');
     
     // Check if all students have grades
     const studentsQuery = `
@@ -233,6 +323,7 @@ exports.submitGradesForApproval = async (req, res) => {
     `;
     const studentsResult = await pool.query(studentsQuery, [section_id]);
     const totalStudents = parseInt(studentsResult.rows[0].total_students);
+    console.log('DEBUG: Total students:', totalStudents);
     
     const gradesQuery = `
       SELECT COUNT(*) as graded_students
@@ -245,29 +336,53 @@ exports.submitGradesForApproval = async (req, res) => {
     `;
     const gradesResult = await pool.query(gradesQuery, [section_id]);
     const gradedStudents = parseInt(gradesResult.rows[0].graded_students);
+    console.log('DEBUG: Graded students:', gradedStudents);
     
     if (gradedStudents < totalStudents) {
+      console.log('DEBUG: Not enough grades - returning 400');
       return res.status(400).json({ 
         error: `Chưa nhập đủ điểm. Đã nhập: ${gradedStudents}/${totalStudents} sinh viên` 
       });
     }
+    
+    console.log('DEBUG: All students have grades, updating status to SUBMITTED...');
     
     // Update all grades status to SUBMITTED
     const updateQuery = `
       UPDATE grades
       SET status = 'SUBMITTED'
       WHERE section_id = $1 AND status = 'DRAFT'
-      RETURNING *
+      RETURNING grade_id, student_id, status
     `;
     
     const result = await pool.query(updateQuery, [section_id]);
+    console.log('DEBUG: Updated grades:', result.rows);
+    console.log('DEBUG: Updated grades count:', result.rows.length);
+    
+    if (result.rows.length === 0) {
+      console.log('DEBUG: No grades were updated - checking current status');
+      const statusCheck = await pool.query(
+        'SELECT status, COUNT(*) as count FROM grades WHERE section_id = $1 GROUP BY status',
+        [section_id]
+      );
+      console.log('DEBUG: Current grade statuses:', statusCheck.rows);
+      return res.status(400).json({ 
+        error: 'Không có điểm nào ở trạng thái DRAFT để gửi duyệt',
+        current_status: statusCheck.rows
+      });
+    }
+    
+    console.log('DEBUG: Submit successful, sending response...');
     
     res.json({
       message: 'Gửi bảng điểm thành công',
-      submitted_count: result.rows.length
+      submitted_count: result.rows.length,
+      section_id: section_id,
+      status: 'SUBMITTED'
     });
   } catch (error) {
-    console.error('Error submitting grades:', error);
+    console.error('❌ ERROR in submitGradesForApproval:', error);
+    console.error('❌ Error stack:', error.stack);
     res.status(500).json({ error: error.message });
   }
 };

@@ -34,8 +34,24 @@ const GradesPage = () => {
     }
   };
 
+  const calculateGradeChar = (total_10) => {
+    const score = parseFloat(total_10);
+    if (isNaN(score)) return null;
+    
+    if (score >= 9.0) return 'A+';
+    if (score >= 8.0) return 'A';
+    if (score >= 7.5) return 'B+';
+    if (score >= 7.0) return 'B';
+    if (score >= 6.0) return 'C+';
+    if (score >= 5.0) return 'C';
+    if (score >= 4.5) return 'D+';
+    if (score >= 4.0) return 'D';
+    return 'F';
+  };
+
   const getGradeColor = (gradeChar) => {
     const colors = {
+      'A+': 'green',
       'A': 'green',
       'B+': 'blue',
       'B': 'blue',
@@ -49,7 +65,7 @@ const GradesPage = () => {
   };
 
   const getPassStatus = (gradeChar) => {
-    return ['A', 'B+', 'B', 'C+', 'C', 'D+', 'D'].includes(gradeChar);
+    return ['A+', 'A', 'B+', 'B', 'C+', 'C', 'D+', 'D'].includes(gradeChar);
   };
 
   // Filter grades
@@ -60,19 +76,29 @@ const GradesPage = () => {
   });
 
   // Calculate statistics (chỉ tính các môn đã có điểm)
-  const gradesWithScores = filteredGrades.filter(grade => 
-    grade.total_10 != null && grade.total_10 !== undefined
-  );
+  const gradesWithScores = filteredGrades.filter(grade => {
+    const total10 = grade.total_10 != null ? parseFloat(grade.total_10) : null;
+    return total10 != null && !isNaN(total10);
+  });
   
   const totalCredits = gradesWithScores.reduce((sum, grade) => sum + (grade.credits || 0), 0);
+  
   const passedCredits = gradesWithScores
-    .filter(grade => getPassStatus(grade.grade_char))
+    .filter(grade => {
+      // Sử dụng grade_char từ DB, nếu null thì tính từ total_10
+      let gradeChar = grade.grade_char;
+      if (!gradeChar || gradeChar === 'null') {
+        const total10 = parseFloat(grade.total_10);
+        gradeChar = calculateGradeChar(total10);
+      }
+      return getPassStatus(gradeChar);
+    })
     .reduce((sum, grade) => sum + (grade.credits || 0), 0);
   
   const totalGradePoints = gradesWithScores.reduce((sum, grade) => {
-    const gradePoint = grade.total_4 != null && typeof grade.total_4 === 'number' ? grade.total_4 : 0;
+    const gradePoint = grade.total_4 != null ? parseFloat(grade.total_4) : 0;
     const credits = grade.credits || 0;
-    return sum + (gradePoint * credits);
+    return sum + (isNaN(gradePoint) ? 0 : gradePoint * credits);
   }, 0);
   const gpa = totalCredits > 0 ? (totalGradePoints / totalCredits).toFixed(2) : '0.00';
 
@@ -118,7 +144,11 @@ const GradesPage = () => {
       key: 'attendance',
       width: 100,
       align: 'center',
-      render: (value) => value != null && typeof value === 'number' ? value.toFixed(1) : '-'
+      render: (value) => {
+        if (value == null || value === undefined) return '-';
+        const num = parseFloat(value);
+        return isNaN(num) ? '-' : num.toFixed(1);
+      }
     },
     {
       title: 'Giữa kỳ',
@@ -126,7 +156,11 @@ const GradesPage = () => {
       key: 'midterm',
       width: 100,
       align: 'center',
-      render: (value) => value != null && typeof value === 'number' ? value.toFixed(1) : '-'
+      render: (value) => {
+        if (value == null || value === undefined) return '-';
+        const num = parseFloat(value);
+        return isNaN(num) ? '-' : num.toFixed(1);
+      }
     },
     {
       title: 'Cuối kỳ',
@@ -134,23 +168,32 @@ const GradesPage = () => {
       key: 'final',
       width: 100,
       align: 'center',
-      render: (value) => value != null && typeof value === 'number' ? value.toFixed(1) : '-'
+      render: (value) => {
+        if (value == null || value === undefined) return '-';
+        const num = parseFloat(value);
+        return isNaN(num) ? '-' : num.toFixed(1);
+      }
     },
     {
       title: 'Tổng kết',
       key: 'total',
       width: 120,
       align: 'center',
-      render: (_, record) => (
-        <div>
-          <div style={{ fontWeight: 'bold', fontSize: 16 }}>
-            {record.total_10 != null && typeof record.total_10 === 'number' ? record.total_10.toFixed(1) : '-'}
+      render: (_, record) => {
+        const total10 = record.total_10 != null ? parseFloat(record.total_10) : null;
+        const total4 = record.total_4 != null ? parseFloat(record.total_4) : null;
+        
+        return (
+          <div>
+            <div style={{ fontWeight: 'bold', fontSize: 16 }}>
+              {total10 != null && !isNaN(total10) ? total10.toFixed(1) : '-'}
+            </div>
+            <div style={{ fontSize: 12, color: '#666' }}>
+              ({total4 != null && !isNaN(total4) ? total4.toFixed(1) : '-'})
+            </div>
           </div>
-          <div style={{ fontSize: 12, color: '#666' }}>
-            ({record.total_4 != null && typeof record.total_4 === 'number' ? record.total_4.toFixed(1) : '-'})
-          </div>
-        </div>
-      )
+        );
+      }
     },
     {
       title: 'Điểm chữ',
@@ -160,12 +203,20 @@ const GradesPage = () => {
       align: 'center',
       render: (gradeChar, record) => {
         // Chỉ hiển thị điểm chữ khi đã có điểm tổng kết
-        if (record.total_10 == null || record.total_10 === undefined) {
+        const total10 = record.total_10 != null ? parseFloat(record.total_10) : null;
+        if (total10 == null || isNaN(total10)) {
           return <span style={{ color: '#999' }}>-</span>;
         }
+        
+        // Sử dụng grade_char từ DB, nếu null thì tính từ total_10
+        let displayGradeChar = gradeChar;
+        if (!displayGradeChar || displayGradeChar === 'null') {
+          displayGradeChar = calculateGradeChar(total10);
+        }
+        
         return (
-          <Tag color={getGradeColor(gradeChar)} style={{ fontSize: 14, fontWeight: 'bold' }}>
-            {gradeChar || '-'}
+          <Tag color={getGradeColor(displayGradeChar)} style={{ fontSize: 14, fontWeight: 'bold' }}>
+            {displayGradeChar || '-'}
           </Tag>
         );
       }
@@ -177,10 +228,18 @@ const GradesPage = () => {
       align: 'center',
       render: (_, record) => {
         // Chỉ hiển thị kết quả khi đã có điểm tổng kết
-        if (record.total_10 == null || record.total_10 === undefined) {
+        const total10 = record.total_10 != null ? parseFloat(record.total_10) : null;
+        if (total10 == null || isNaN(total10)) {
           return <span style={{ color: '#999' }}>Chưa có</span>;
         }
-        const passed = getPassStatus(record.grade_char);
+        
+        // Sử dụng grade_char từ DB, nếu null thì tính từ total_10
+        let gradeChar = record.grade_char;
+        if (!gradeChar || gradeChar === 'null') {
+          gradeChar = calculateGradeChar(total10);
+        }
+        
+        const passed = getPassStatus(gradeChar);
         return passed ? (
           <Tag icon={<CheckCircleOutlined />} color="success">Đạt</Tag>
         ) : (
@@ -311,14 +370,15 @@ const GradesPage = () => {
                       (() => {
                         const semesterGrades = groupedGrades[semester];
                         // Chỉ tính các môn đã có điểm
-                        const gradesWithScores = semesterGrades.filter(g => 
-                          g.total_10 != null && g.total_10 !== undefined
-                        );
+                        const gradesWithScores = semesterGrades.filter(g => {
+                          const total10 = g.total_10 != null ? parseFloat(g.total_10) : null;
+                          return total10 != null && !isNaN(total10);
+                        });
                         const semesterCredits = gradesWithScores.reduce((sum, g) => sum + (g.credits || 0), 0);
                         const semesterPoints = gradesWithScores.reduce((sum, g) => {
-                          const gradePoint = g.total_4 != null && typeof g.total_4 === 'number' ? g.total_4 : 0;
+                          const gradePoint = g.total_4 != null ? parseFloat(g.total_4) : 0;
                           const credits = g.credits || 0;
-                          return sum + (gradePoint * credits);
+                          return sum + (isNaN(gradePoint) ? 0 : gradePoint * credits);
                         }, 0);
                         return semesterCredits > 0 ? (semesterPoints / semesterCredits).toFixed(2) : '0.00';
                       })()
