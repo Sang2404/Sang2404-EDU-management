@@ -398,9 +398,14 @@ exports.approveRequest = async (req, res) => {
       return res.status(400).json({ error: 'Phản hồi phải có ít nhất 10 ký tự' });
     }
     
-    // Check request exists and is PENDING
+    // Get request details before processing
     const requestCheck = await pool.query(
-      'SELECT request_id, status FROM academic_requests WHERE request_id = $1',
+      `SELECT ar.request_id, ar.status, ar.student_id, ar.request_type, ar.reason,
+              u.full_name as student_name, u.email as student_email
+       FROM academic_requests ar
+       JOIN students st ON ar.student_id = st.student_id
+       JOIN users u ON st.user_id = u.user_id
+       WHERE ar.request_id = $1`,
       [requestId]
     );
     
@@ -408,13 +413,15 @@ exports.approveRequest = async (req, res) => {
       return res.status(404).json({ error: 'Không tìm thấy yêu cầu' });
     }
     
-    if (requestCheck.rows[0].status !== 'PENDING') {
+    const request = requestCheck.rows[0];
+    
+    if (request.status !== 'PENDING') {
       return res.status(409).json({ 
-        error: `Chỉ có thể phê duyệt yêu cầu đang chờ xử lý. Trạng thái hiện tại: ${requestCheck.rows[0].status}` 
+        error: `Chỉ có thể phê duyệt yêu cầu đang chờ xử lý. Trạng thái hiện tại: ${request.status}` 
       });
     }
     
-    // Update request
+    // Update request status to APPROVED
     const updateQuery = `
       UPDATE academic_requests
       SET status = 'APPROVED', 
@@ -425,6 +432,19 @@ exports.approveRequest = async (req, res) => {
     `;
     
     const result = await pool.query(updateQuery, [admin_response.trim(), requestId]);
+    
+    // Send notification to student
+    try {
+      const notificationService = require('../services/notificationService');
+      await notificationService.saveNotification(
+        request.student_id,
+        'Yêu cầu học vụ đã được phê duyệt',
+        `Yêu cầu ${getRequestTypeDisplay(request.request_type)} của bạn đã được phê duyệt.\n\nPhản hồi: ${admin_response.trim()}`
+      );
+    } catch (notifError) {
+      console.error('Error sending notification:', notifError);
+      // Continue with the process even if notification fails
+    }
     
     res.json({
       message: 'Phê duyệt yêu cầu thành công',
@@ -450,9 +470,14 @@ exports.rejectRequest = async (req, res) => {
       return res.status(400).json({ error: 'Phản hồi phải có ít nhất 10 ký tự' });
     }
     
-    // Check request exists and is PENDING
+    // Get request details before processing
     const requestCheck = await pool.query(
-      'SELECT request_id, status FROM academic_requests WHERE request_id = $1',
+      `SELECT ar.request_id, ar.status, ar.student_id, ar.request_type, ar.reason,
+              u.full_name as student_name, u.email as student_email
+       FROM academic_requests ar
+       JOIN students st ON ar.student_id = st.student_id
+       JOIN users u ON st.user_id = u.user_id
+       WHERE ar.request_id = $1`,
       [requestId]
     );
     
@@ -460,13 +485,15 @@ exports.rejectRequest = async (req, res) => {
       return res.status(404).json({ error: 'Không tìm thấy yêu cầu' });
     }
     
-    if (requestCheck.rows[0].status !== 'PENDING') {
+    const request = requestCheck.rows[0];
+    
+    if (request.status !== 'PENDING') {
       return res.status(409).json({ 
-        error: `Chỉ có thể từ chối yêu cầu đang chờ xử lý. Trạng thái hiện tại: ${requestCheck.rows[0].status}` 
+        error: `Chỉ có thể từ chối yêu cầu đang chờ xử lý. Trạng thái hiện tại: ${request.status}` 
       });
     }
     
-    // Update request
+    // Update request status to REJECTED
     const updateQuery = `
       UPDATE academic_requests
       SET status = 'REJECTED', 
@@ -477,6 +504,19 @@ exports.rejectRequest = async (req, res) => {
     `;
     
     const result = await pool.query(updateQuery, [admin_response.trim(), requestId]);
+    
+    // Send notification to student
+    try {
+      const notificationService = require('../services/notificationService');
+      await notificationService.saveNotification(
+        request.student_id,
+        'Yêu cầu học vụ đã bị từ chối',
+        `Yêu cầu ${getRequestTypeDisplay(request.request_type)} của bạn đã bị từ chối.\n\nLý do: ${admin_response.trim()}`
+      );
+    } catch (notifError) {
+      console.error('Error sending notification:', notifError);
+      // Continue with the process even if notification fails
+    }
     
     res.json({
       message: 'Từ chối yêu cầu thành công',

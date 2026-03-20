@@ -35,7 +35,7 @@ const AcademicRequestsPage = () => {
   const [approveForm] = Form.useForm();
   const [rejectForm] = Form.useForm();
 
-  // Filter states
+  // Filter states - mặc định chỉ hiển thị yêu cầu cần xử lý (PENDING)
   const [filterStatus, setFilterStatus] = useState('PENDING');
   const [filterType, setFilterType] = useState(null);
 
@@ -95,6 +95,7 @@ const AcademicRequestsPage = () => {
       message.success('Phê duyệt yêu cầu thành công');
       setApproveModalVisible(false);
       approveForm.resetFields();
+      // Làm mới danh sách để loại bỏ yêu cầu đã xử lý
       fetchRequests();
     } catch (error) {
       message.error(error.response?.data?.error || 'Không thể phê duyệt yêu cầu');
@@ -109,6 +110,7 @@ const AcademicRequestsPage = () => {
       message.success('Từ chối yêu cầu thành công');
       setRejectModalVisible(false);
       rejectForm.resetFields();
+      // Làm mới danh sách để loại bỏ yêu cầu đã xử lý
       fetchRequests();
     } catch (error) {
       message.error(error.response?.data?.error || 'Không thể từ chối yêu cầu');
@@ -249,8 +251,9 @@ const AcademicRequestsPage = () => {
             style={{ width: 150 }}
             value={filterStatus}
             onChange={setFilterStatus}
+            allowClear
+            placeholder="Tất cả trạng thái"
           >
-            <Option value="">Tất cả</Option>
             <Option value="PENDING">Chờ xử lý</Option>
             <Option value="APPROVED">Đã duyệt</Option>
             <Option value="REJECTED">Đã từ chối</Option>
@@ -262,6 +265,7 @@ const AcademicRequestsPage = () => {
             value={filterType}
             onChange={setFilterType}
             allowClear
+            placeholder="Tất cả loại yêu cầu"
           >
             <Option value="REVIEW">Phúc khảo điểm</Option>
             <Option value="RESERVE">Bảo lưu</Option>
@@ -278,7 +282,7 @@ const AcademicRequestsPage = () => {
         scroll={{ x: 1300 }}
         pagination={{
           pageSize: 10,
-          showTotal: (total) => `Tổng số ${total} yêu cầu`
+          showTotal: (total) => `Tổng số ${total} yêu cầu cần xử lý`
         }}
       />
 

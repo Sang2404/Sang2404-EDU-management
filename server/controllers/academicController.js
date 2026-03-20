@@ -1308,3 +1308,34 @@ exports.bulkAddStudentsToSection = async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 };
+
+// Get sections for a specific student (for academic requests)
+exports.getSectionsForStudent = async (req, res) => {
+  try {
+    const { studentId } = req.params;
+    
+    const query = `
+      SELECT 
+        cs.section_id,
+        cs.section_code,
+        cs.semester,
+        cs.academic_year,
+        s.subject_name,
+        s.credits,
+        u.full_name as lecturer_name
+      FROM section_students ss
+      JOIN course_sections cs ON ss.section_id = cs.section_id
+      JOIN subjects s ON cs.subject_id = s.subject_id
+      JOIN lecturers l ON cs.lecturer_id = l.lecturer_id
+      JOIN users u ON l.user_id = u.user_id
+      WHERE ss.student_id = $1
+      ORDER BY cs.academic_year DESC, cs.semester, s.subject_name
+    `;
+    
+    const result = await pool.query(query, [studentId]);
+    res.json(result.rows);
+  } catch (error) {
+    console.error('Error getting sections for student:', error);
+    res.status(500).json({ error: error.message });
+  }
+};

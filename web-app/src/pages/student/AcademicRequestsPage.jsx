@@ -17,6 +17,9 @@ const AcademicRequestsPage = () => {
   const [enrolledSections, setEnrolledSections] = useState([]);
   const [activeTab, setActiveTab] = useState('REVIEW');
   const [form] = Form.useForm();
+  const [reviewForm] = Form.useForm();
+  const [reserveForm] = Form.useForm();
+  const [retakeForm] = Form.useForm();
 
   const user = JSON.parse(localStorage.getItem('user'));
   const studentId = user.username;
@@ -92,7 +95,9 @@ const AcademicRequestsPage = () => {
       
       message.success(`Gửi yêu cầu ${typeText[activeTab]} thành công`);
       setIsModalVisible(false);
-      form.resetFields();
+      reviewForm.resetFields();
+      reserveForm.resetFields();
+      retakeForm.resetFields();
       fetchRequests();
     } catch (error) {
       const errorMsg = error.response?.data?.error || error.response?.data?.message || 'Không thể gửi yêu cầu';
@@ -265,7 +270,9 @@ const AcademicRequestsPage = () => {
         open={isModalVisible}
         onCancel={() => {
           setIsModalVisible(false);
-          form.resetFields();
+          reviewForm.resetFields();
+          reserveForm.resetFields();
+          retakeForm.resetFields();
         }}
         footer={null}
         width={600}
@@ -283,7 +290,6 @@ const AcademicRequestsPage = () => {
               activeKey={activeTab}
               onChange={(key) => {
                 setActiveTab(key);
-                form.resetFields();
               }}
               items={[
                 {
@@ -349,7 +355,7 @@ const AcademicRequestsPage = () => {
                         <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
                           <Button onClick={() => {
                             setIsModalVisible(false);
-                            form.resetFields();
+                            reviewForm.resetFields();
                           }} disabled={submitLoading} aria-label="Hủy gửi yêu cầu phúc khảo">
                             Hủy
                           </Button>
@@ -366,7 +372,7 @@ const AcademicRequestsPage = () => {
                   label: 'Bảo lưu',
                   children: (
                     <Form
-                      form={form}
+                      form={reserveForm}
                       layout="vertical"
                       onFinish={handleSubmit}
                     >
@@ -424,11 +430,16 @@ const AcademicRequestsPage = () => {
                         <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
                           <Button onClick={() => {
                             setIsModalVisible(false);
-                            form.resetFields();
+                            reserveForm.resetFields();
                           }} disabled={submitLoading} aria-label="Hủy gửi yêu cầu bảo lưu">
                             Hủy
                           </Button>
-                          <Button type="primary" htmlType="submit" loading={submitLoading} aria-label="Gửi yêu cầu bảo lưu">
+                          <Button 
+                            type="primary" 
+                            htmlType="submit" 
+                            loading={submitLoading} 
+                            aria-label="Gửi yêu cầu bảo lưu"
+                          >
                             Gửi yêu cầu
                           </Button>
                         </div>
@@ -441,7 +452,7 @@ const AcademicRequestsPage = () => {
                   label: 'Học lại',
                   children: (
                     <Form
-                      form={form}
+                      form={retakeForm}
                       layout="vertical"
                       onFinish={handleSubmit}
                     >
@@ -499,7 +510,7 @@ const AcademicRequestsPage = () => {
                         <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
                           <Button onClick={() => {
                             setIsModalVisible(false);
-                            form.resetFields();
+                            retakeForm.resetFields();
                           }} disabled={submitLoading} aria-label="Hủy gửi yêu cầu học lại">
                             Hủy
                           </Button>

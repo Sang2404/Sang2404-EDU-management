@@ -22,7 +22,7 @@ const getStatusDisplay = (status) => {
 
 exports.createRequest = async (req, res) => {
   try {
-    const { student_id, request_type, reason, grade_id } = req.body;
+    const { student_id, request_type, reason, grade_id, section_id } = req.body;
     
     // Validate required fields
     if (!student_id) {
@@ -70,6 +70,43 @@ exports.createRequest = async (req, res) => {
       }
     }
     
+    // Check section exists if provided (for RESERVE requests)
+    if (section_id) {
+      const sectionCheck = await pool.query(
+        'SELECT section_id FROM course_sections WHERE section_id = $1',
+        [section_id]
+      );
+      
+      if (sectionCheck.rows.length === 0) {
+        return res.status(404).json({ error: 'Không tìm thấy lớp học phần' });
+      }
+      
+      // Check if student is enrolled in this section
+      const enrollmentCheck = await pool.query(
+        'SELECT * FROM section_students WHERE section_id = $1 AND student_id = $2',
+        [section_id, student_id]
+      );
+      
+      if (enrollmentCheck.rows.length === 0) {
+        return res.status(400).json({ error: 'Sinh viên không đăng ký lớp học phần này' });
+      }
+    }
+    
+    // For RESERVE requests, we need to convert section_id to grade_id if exists
+    let finalGradeId = grade_id;
+    if (request_type === 'RESERVE' && section_id && !grade_id) {
+      // Try to find existing grade for this student in this section
+      const gradeCheck = await pool.query(
+        'SELECT grade_id FROM grades WHERE section_id = $1 AND student_id = $2',
+        [section_id, student_id]
+      );
+      
+      if (gradeCheck.rows.length > 0) {
+        finalGradeId = gradeCheck.rows[0].grade_id;
+      }
+      // If no grade exists, that's fine for RESERVE requests
+    }
+    
     // Insert request
     const insertQuery = `
       INSERT INTO academic_requests (
@@ -82,7 +119,7 @@ exports.createRequest = async (req, res) => {
       student_id,
       request_type,
       reason.trim(),
-      grade_id || null
+      finalGradeId || null
     ]);
     
     res.status(201).json({
