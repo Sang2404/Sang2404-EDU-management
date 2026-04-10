@@ -51,12 +51,17 @@ class Schedule {
   }
 
   String get periodTime {
-    // Convert period to actual time (assuming each period is 45 minutes, starting at 7:00)
-    final startHour = 7 + ((startPeriod - 1) * 45) ~/ 60;
-    final startMinute = ((startPeriod - 1) * 45) % 60;
-    final endHour = 7 + ((endPeriod) * 45) ~/ 60;
-    final endMinute = ((endPeriod) * 45) % 60;
+    // Convert period to actual time
+    // Tiết 1-5: 7:00 - 11:30 (4.5 hours)
+    // Tiết 6-10: 13:00 - 17:30 (4.5 hours)
     
-    return '${startHour.toString().padLeft(2, '0')}:${startMinute.toString().padLeft(2, '0')} - ${endHour.toString().padLeft(2, '0')}:${endMinute.toString().padLeft(2, '0')}';
+    if (startPeriod >= 1 && endPeriod <= 5) {
+      return '07:00 - 11:30';
+    } else if (startPeriod >= 6 && endPeriod <= 10) {
+      return '13:00 - 17:30';
+    } else {
+      // Fallback for other periods
+      return 'Tiết $startPeriod - $endPeriod';
+    }
   }
 }

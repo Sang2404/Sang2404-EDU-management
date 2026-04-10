@@ -3,11 +3,11 @@ class AppConstants {
   static const String baseUrl = 'http://localhost:5001/api';
   
   // Endpoints
-  static const String loginEndpoint = '/auth/login';
+  static const String loginEndpoint = '/auth/login-mobile';
   static const String scheduleEndpoint = '/academic/student-schedule';
   static const String gradesEndpoint = '/grades/student';
   static const String coursesEndpoint = '/academic/student-courses';
-  static const String requestsEndpoint = '/requests';
+  static const String requestsEndpoint = '/academic-requests';
   static const String sectionsEndpoint = '/academic/student-sections';
   
   // Storage Keys

@@ -13,7 +13,7 @@ class NotificationService {
 
   static Future<void> initialize() async {
     final instance = NotificationService();
-    await instance._initializeFirebase();
+    // await instance._initializeFirebase();
     await instance._initializeLocalNotifications();
   }
 

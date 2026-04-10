@@ -46,15 +46,18 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void initState() {
     super.initState();
-    _initializeData();
+    // Remove automatic initialization to avoid setState during build
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _initializeData();
+    });
   }
 
   Future<void> _initializeData() async {
     final authProvider = context.read<AuthProvider>();
-    await authProvider.initialize();
-
+    
+    // Only initialize if user is logged in
     if (authProvider.isLoggedIn) {
-      // Initialize other providers
+      // Initialize other providers without await to avoid blocking
       context.read<ScheduleProvider>().fetchSchedules();
       context.read<GradeProvider>().fetchGrades();
       context.read<RequestProvider>().initialize();
@@ -108,10 +111,17 @@ class _HomeScreenState extends State<HomeScreen> {
         }
 
         if (!authProvider.isLoggedIn) {
+          // Use addPostFrameCallback to avoid calling navigation during build
           WidgetsBinding.instance.addPostFrameCallback((_) {
-            context.go('/login');
+            if (mounted) {
+              context.go('/login');
+            }
           });
-          return const SizedBox.shrink();
+          return const Scaffold(
+            body: Center(
+              child: CircularProgressIndicator(),
+            ),
+          );
         }
 
         return Scaffold(

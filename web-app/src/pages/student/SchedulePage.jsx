@@ -1,13 +1,15 @@
-import { useState, useEffect } from 'react';
-import { Card, Select, Spin, Empty, Space } from 'antd';
+import { useState, useEffect, useContext } from 'react';
+import { Card, Select, Spin, Empty, message } from 'antd';
 import { SunOutlined, CloudOutlined, MoonOutlined } from '@ant-design/icons';
 import api from '../../config/axios';
 import '../admin/SchedulesPage.css';
+import { NotificationContext } from '../../context/NotificationContext';
 
 const SchedulePage = () => {
   const [schedules, setSchedules] = useState([]);
+  const [allSemesterSchedules, setAllSemesterSchedules] = useState([]); // Bộ nhớ đệm toàn bộ semester
   const [loading, setLoading] = useState(false);
-  const [user, setUser] = useState(null);
+  const { socket } = useContext(NotificationContext);
   const [filters, setFilters] = useState({
     semester: 'HK2',
     academic_year: '2025-2026',
@@ -36,21 +38,21 @@ const SchedulePage = () => {
     const yearParts = filters.academic_year.split('-');
     const startYear = parseInt(yearParts[0]);
     const endYear = parseInt(yearParts[1]);
-    
+
     const semesterStarts = {
       'HK1': { month: 8, day: 15, year: startYear },
       'HK2': { month: 1, day: 10, year: endYear },
       'HK3': { month: 5, day: 15, year: endYear }
     };
-    
+
     const start = semesterStarts[filters.semester];
     if (!start) return '';
-    
+
     const weekStartDate = new Date(start.year, start.month - 1, start.day + ((weekNumber - 1) * 7));
     const dayOffset = dayOfWeek === 8 ? 6 : (dayOfWeek - 2);
     const targetDate = new Date(weekStartDate);
     targetDate.setDate(weekStartDate.getDate() + dayOffset);
-    
+
     const day = String(targetDate.getDate()).padStart(2, '0');
     const month = String(targetDate.getMonth() + 1).padStart(2, '0');
     return `${day}/${month}`;
@@ -61,93 +63,120 @@ const SchedulePage = () => {
     const yearParts = academicYear.split('-');
     const startYear = parseInt(yearParts[0]);
     const endYear = parseInt(yearParts[1]);
-    
+
     const semesterStarts = {
       'HK1': { month: 8, day: 15, year: startYear },
       'HK2': { month: 1, day: 10, year: endYear },
       'HK3': { month: 5, day: 15, year: endYear }
     };
-    
+
     const start = semesterStarts[semester];
     if (!start) return [];
-    
+
     const weeks = [];
     for (let i = 0; i < 16; i++) {
       const weekStart = new Date(start.year, start.month - 1, start.day + (i * 7));
       const weekEnd = new Date(start.year, start.month - 1, start.day + (i * 7) + 6);
-      
+
       const formatDate = (date) => {
         const d = String(date.getDate()).padStart(2, '0');
         const m = String(date.getMonth() + 1).padStart(2, '0');
         return `${d}/${m}`;
       };
-      
+
       weeks.push({
         value: `week${i + 1}`,
         label: `Tuần ${i + 1} (${formatDate(weekStart)} - ${formatDate(weekEnd)})`
       });
     }
-    
+
     return weeks;
   };
 
   const weekOptions = getWeekOptions(filters.academic_year, filters.semester);
 
-  useEffect(() => {
-    const userData = JSON.parse(localStorage.getItem('user'));
-    setUser(userData);
-  }, []);
-
+  // Gọi API mỗi khi Thay đổi Học kỳ / Năm học
   useEffect(() => {
     fetchSchedules();
-  }, [filters]);
+  }, [filters.semester, filters.academic_year]);
 
-  const fetchSchedules = async () => {
-    setLoading(true);
+  // Cập nhật lại UI mỗi khi thay đổi tuần học, filter tại local không cần call API
+  useEffect(() => {
+    if (allSemesterSchedules.length > 0) {
+      const weekNumber = parseInt(filters.week.replace('week', ''));
+      setSchedules(allSemesterSchedules.filter(s => s.week === weekNumber));
+    } else {
+      setSchedules([]);
+    }
+  }, [filters.week, allSemesterSchedules]);
+
+  // Real-time cập nhật khi Admin sửa lịch
+  useEffect(() => {
+    if (!socket) return;
+
+    const handleScheduleUpdate = () => {
+      console.log("⚡ Nhận tín hiệu đổi lịch từ admin, làm mới dữ liệu dưới nền...");
+      message.info({
+        content: "🔔 Lịch học vừa có sự thay đổi từ Giáo vụ. Đang hiển thị bản mới nhất!",
+        duration: 4,
+        key: 'schedule_update_toast'
+      });
+      fetchSchedules(false);
+    };
+
+    socket.on('schedule_updated', handleScheduleUpdate);
+
+    return () => {
+      socket.off('schedule_updated', handleScheduleUpdate);
+    };
+  }, [socket, filters.semester, filters.academic_year]);
+
+  const fetchSchedules = async (showLoading = true) => {
+    if (showLoading) {
+      setLoading(true);
+    }
     try {
       const user = JSON.parse(localStorage.getItem('user'));
-      const sectionsResponse = await api.get(`/academic/students/${user.username}/sections`);
-      const sections = sectionsResponse.data || [];
 
-      // Filter sections by semester and academic_year
-      const filteredSections = sections.filter(section => 
-        section.semester === filters.semester && 
-        section.academic_year === filters.academic_year
-      );
+      if (!user || !user.student_id) {
+        throw new Error('Không tìm thấy thông tin sinh viên');
+      }
 
-      const allSchedules = [];
-      filteredSections.forEach(section => {
-        if (section.schedules && section.schedules.length > 0) {
-          section.schedules.forEach(schedule => {
-            allSchedules.push({
-              ...schedule,
-              section_code: section.section_code,
-              subject_name: section.subject_name,
-              lecturer_name: section.lecturer_name,
-              credits: section.credits
-            });
-          });
-        }
+      // Get all schedules for the entire semester by omitting week filter
+      const params = new URLSearchParams({
+        semester: filters.semester,
+        academic_year: filters.academic_year,
+        _t: new Date().getTime() // Cache buster để vượt qua bộ đệm của trình duyệt
       });
-      setSchedules(allSchedules);
+
+      const schedulesResponse = await api.get(`/schedules/student/${user.student_id}?${params}`);
+      const data = schedulesResponse.data || [];
+
+      setAllSemesterSchedules(data); // Lưu full vào cache local
+
+      // Lọc ra dữ liệu tuần hiện tại để hiển thị lần đầu
+      const weekNumber = parseInt(filters.week.replace('week', ''));
+      setSchedules(data.filter(s => s.week === weekNumber));
     } catch (error) {
+      console.error('Error fetching schedules:', error);
       const errorMsg = error.response?.data?.error || error.response?.data?.message || 'Không thể tải lịch học';
-      message.error(errorMsg);
+      console.error(errorMsg);
     } finally {
-      setLoading(false);
+      if (showLoading) {
+        setLoading(false);
+      }
     }
   };
 
   // Lấy lịch học cho ngày và ca cụ thể
   const getScheduleForDayAndPeriod = (day, periodKey) => {
     const periodRange = periods[periodKey];
-    const weekNumber = parseInt(filters.week.replace('week', ''));
-    
-    return schedules.find(s => 
-      s.week === weekNumber &&
+
+    // Vì backend đã filter theo week rồi, chỉ cần check day và period
+    return schedules.find(s =>
       s.day_of_week === day &&
       s.start_period >= periodRange.start &&
-      s.end_period <= periodRange.end
+      s.start_period <= periodRange.end
     );
   };
 
@@ -170,13 +199,13 @@ const SchedulePage = () => {
   }
 
   return (
-    <Card 
+    <Card
       title="📅 Thời khóa biểu"
     >
       {/* Filters */}
-      <div style={{ 
-        display: 'flex', 
-        gap: 16, 
+      <div style={{
+        display: 'flex',
+        gap: 16,
         marginBottom: 24,
         padding: '16px 0'
       }}>
@@ -231,9 +260,9 @@ const SchedulePage = () => {
       {/* Schedule Table */}
       <div style={{ marginTop: 24 }}>
         {/* Header */}
-        <div style={{ 
-          display: 'flex', 
-          gap: 16, 
+        <div style={{
+          display: 'flex',
+          gap: 16,
           marginBottom: 16,
           borderBottom: '2px solid #f0f0f0',
           paddingBottom: 12
@@ -253,15 +282,15 @@ const SchedulePage = () => {
 
         {/* Rows */}
         {Object.entries(periods).map(([periodKey, period]) => (
-          <div key={periodKey} style={{ 
-            display: 'flex', 
-            gap: 16, 
+          <div key={periodKey} style={{
+            display: 'flex',
+            gap: 16,
             marginBottom: 16,
             alignItems: 'stretch'
           }}>
             {/* Period Label */}
-            <div style={{ 
-              width: 100, 
+            <div style={{
+              width: 100,
               display: 'flex',
               flexDirection: 'column',
               alignItems: 'center',
@@ -274,16 +303,16 @@ const SchedulePage = () => {
               <div style={{ fontWeight: 600, fontSize: 14 }}>{period.label}</div>
               <div style={{ fontSize: 11, color: '#666', textAlign: 'center' }}>{period.time}</div>
             </div>
-            
+
             {/* Schedule Cells */}
             {days.map(day => {
               const schedule = getScheduleForDayAndPeriod(day.value, periodKey);
               const colors = getPeriodColor(periodKey);
-              
+
               return (
-                <div 
+                <div
                   key={day.value}
-                  style={{ 
+                  style={{
                     flex: 1,
                     background: schedule ? colors.bg : '#fafafa',
                     border: schedule ? `2px solid ${colors.border}` : '2px dashed #d9d9d9',
@@ -299,17 +328,17 @@ const SchedulePage = () => {
                 >
                   {schedule ? (
                     <>
-                      <div style={{ 
-                        fontSize: 11, 
-                        color: '#666', 
+                      <div style={{
+                        fontSize: 11,
+                        color: '#666',
                         marginBottom: 4,
                         fontWeight: 600
                       }}>
                         {schedule.section_code}
                       </div>
-                      <div style={{ 
-                        fontSize: 13, 
-                        fontWeight: 600, 
+                      <div style={{
+                        fontSize: 13,
+                        fontWeight: 600,
                         marginBottom: 6,
                         color: '#1677ff',
                         overflow: 'hidden',
@@ -321,8 +350,8 @@ const SchedulePage = () => {
                       <div style={{ fontSize: 11, color: '#666', marginBottom: 3 }}>
                         Phòng: {schedule.room}
                       </div>
-                      <div style={{ 
-                        fontSize: 11, 
+                      <div style={{
+                        fontSize: 11,
                         color: '#666',
                         overflow: 'hidden',
                         textOverflow: 'ellipsis',
@@ -340,7 +369,7 @@ const SchedulePage = () => {
       </div>
 
       {schedules.length === 0 && !loading && (
-        <Empty 
+        <Empty
           description="Bạn chưa đăng ký lớp học phần nào"
           style={{ marginTop: 50 }}
         />

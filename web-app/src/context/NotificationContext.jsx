@@ -185,10 +185,10 @@ export const NotificationProvider = ({ children }) => {
     isLoading,
     markAsRead,
     markAllAsRead,
-    deleteNotification,
     deleteAllNotifications,
     fetchNotifications,
-    fetchUnreadCount
+    fetchUnreadCount,
+    socket
   };
 
   return (

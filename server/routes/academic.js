@@ -1,7 +1,9 @@
 const express = require('express');
 const router = express.Router();
 const academicController = require('../controllers/academicController');
+const authMobile = require('../middleware/authMobile');
 
+// Admin routes (existing)
 router.get('/faculties', academicController.getAllFaculties);
 router.post('/faculties', academicController.createFaculty);
 router.put('/faculties/:id', academicController.updateFaculty);
@@ -31,11 +33,9 @@ router.delete('/course-sections/:sectionId/students/:studentId', academicControl
 
 router.get('/students/:studentId/sections', academicController.getSectionsForStudent);
 
-router.get('/schedules', academicController.getAllSchedules);
-router.get('/course-sections/:sectionId/schedules', academicController.getSchedulesBySection);
-router.post('/schedules', academicController.createSchedule);
-router.get('/schedules/:id', academicController.getScheduleById);
-router.put('/schedules/:id', academicController.updateSchedule);
-router.delete('/schedules/:id', academicController.deleteSchedule);
+// Mobile app routes (protected with JWT)
+router.get('/student-schedule', authMobile, academicController.getStudentSchedule);
+router.get('/student-courses', authMobile, academicController.getStudentCourses);
+router.get('/student-sections', authMobile, academicController.getStudentSections);
 
 module.exports = router;

@@ -414,3 +414,57 @@ exports.getGradesBySection = async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 };
+// Mobile app endpoint
+exports.getStudentGradesMobile = async (req, res) => {
+  try {
+    const studentId = req.user.student_id;
+    
+    if (!studentId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Không tìm thấy thông tin sinh viên'
+      });
+    }
+
+    const query = `
+      SELECT 
+        g.grade_id,
+        g.section_id,
+        g.student_id,
+        g.attendance,
+        g.midterm,
+        g.final,
+        g.total_10 as average,
+        g.grade_char as letter_grade,
+        CASE WHEN g.status = 'APPROVED' THEN true ELSE false END as is_complete,
+        cs.section_code as section_name,
+        cs.semester,
+        cs.academic_year,
+        sub.subject_name,
+        sub.subject_id,
+        sub.credits,
+        l.full_name as lecturer_name
+      FROM grades g
+      JOIN course_sections cs ON g.section_id = cs.section_id
+      JOIN subjects sub ON cs.subject_id = sub.subject_id
+      JOIN lecturers lec ON cs.lecturer_id = lec.lecturer_id
+      JOIN users l ON lec.user_id = l.user_id
+      WHERE g.student_id = $1
+      ORDER BY cs.section_code
+    `;
+
+    const result = await pool.query(query, [studentId]);
+    
+    res.json({
+      success: true,
+      grades: result.rows
+    });
+  } catch (error) {
+    console.error('Error fetching student grades:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Lỗi khi lấy điểm số',
+      error: error.message
+    });
+  }
+};

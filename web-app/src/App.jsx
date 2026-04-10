@@ -13,7 +13,7 @@ const FacultiesPage = React.lazy(() => import('./pages/admin/FacultiesPage'));
 const UsersPage = React.lazy(() => import('./pages/admin/UsersPage'));
 const SubjectsPage = React.lazy(() => import('./pages/admin/SubjectsPage'));
 const CourseSectionsPage = React.lazy(() => import('./pages/admin/CourseSectionsPage'));
-const SchedulesPage = React.lazy(() => import('./pages/admin/RoomSchedulePage'));
+const SchedulesPage = React.lazy(() => import('./pages/admin/SchedulesPage'));
 const GradeApprovalPage = React.lazy(() => import('./pages/admin/GradeApprovalPage'));
 const AcademicRequestsPage = React.lazy(() => import('./pages/admin/AcademicRequestsPage'));
 const StatisticsPage = React.lazy(() => import('./pages/admin/StatisticsPage'));
@@ -35,22 +35,22 @@ function App() {
     <ChunkErrorBoundary>
       <Routes>
         <Route path="/login" element={<Login />} />
-        
+
         {/* Các Route được bảo vệ */}
         <Route path="/" element={<MainLayout />}>
           {/* Chuyển hướng root về dashboard dựa trên role */}
           <Route index element={
             <Navigate to={
-              localStorage.getItem('user') 
-                ? JSON.parse(localStorage.getItem('user')).role === 'ADMIN' 
-                  ? '/admin/dashboard' 
+              localStorage.getItem('user')
+                ? JSON.parse(localStorage.getItem('user')).role === 'ADMIN'
+                  ? '/admin/dashboard'
                   : JSON.parse(localStorage.getItem('user')).role === 'LECTURER'
-                  ? '/lecturer/schedule'
-                  : '/student/schedule'
+                    ? '/lecturer/schedule'
+                    : '/student/schedule'
                 : '/login'
             } replace />
           } />
-          
+
           {/* Admin Routes */}
           <Route element={<ProtectedRoute allowedRoles={['ADMIN']} />}>
             <Route path="admin/dashboard" element={

@@ -1,7 +1,7 @@
 import React from 'react';
 import { Layout, Menu, Button, theme, Typography } from 'antd';
-import { 
-  UserOutlined, 
+import {
+  UserOutlined,
   LogoutOutlined,
   DashboardOutlined,
   BankOutlined,
@@ -153,42 +153,42 @@ const MainLayout = () => {
   return (
     <Layout style={{ minHeight: '100vh' }}>
       <Sider collapsible collapsed={collapsed} onCollapse={(value) => setCollapsed(value)}>
-        <div style={{ 
-          height: 120, 
+        <div style={{
+          height: 120,
           padding: '20px 8px',
-          display: 'flex', 
-          alignItems: 'center', 
+          display: 'flex',
+          alignItems: 'center',
           justifyContent: 'center',
           overflow: 'hidden'
         }}>
-          <img 
-            src={collapsed ? '/logo-icon.png' : '/logo-full.png'} 
-            alt="EDU Management" 
-            style={{ 
+          <img
+            src={collapsed ? '/logo-icon.png' : '/logo-full.png'}
+            alt="EDU Management"
+            style={{
               height: collapsed ? '45px' : 'auto',
               width: collapsed ? 'auto' : '100%',
               maxHeight: '120px',
               objectFit: 'contain',
               transition: 'all 0.2s'
-            }} 
+            }}
           />
         </div>
-        <Menu 
-          theme="dark" 
-          mode="inline" 
-          defaultSelectedKeys={[location.pathname]} 
-          items={getMenuItems()} 
+        <Menu
+          theme="dark"
+          mode="inline"
+          defaultSelectedKeys={[location.pathname]}
+          items={getMenuItems()}
           onClick={({ key }) => navigate(key)}
         />
       </Sider>
       <Layout>
         <Header style={{ padding: 0, background: colorBgContainer, display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingRight: 20 }}>
-           <Title level={4} style={{ margin: '0 20px' }}>Quản lý Sinh viên</Title>
-           <div style={{ display: 'flex', alignItems: 'center', gap: 15 }}>
-              <NotificationBell />
-              <span>Xin chào, <strong>{user.full_name} ({user.role})</strong></span>
-              <Button icon={<LogoutOutlined />} onClick={handleLogout} danger>Đăng xuất</Button>
-           </div>
+          <Title level={4} style={{ margin: '0 20px' }}>Quản lý Sinh viên</Title>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 15 }}>
+            <NotificationBell />
+            <span>Xin chào, <strong>{user.full_name} ({user.role})</strong></span>
+            <Button icon={<LogoutOutlined />} onClick={handleLogout} danger>Đăng xuất</Button>
+          </div>
         </Header>
         <Content style={{ margin: '24px 16px', padding: 24, minHeight: 280, background: colorBgContainer, borderRadius: borderRadiusLG }}>
           <Outlet />

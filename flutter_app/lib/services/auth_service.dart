@@ -34,15 +34,26 @@ class AuthService {
     }
   }
 
-  // Get current user from storage
+  // Get current user from storage and verify token
   Future<User?> getCurrentUser() async {
     try {
+      final token = await _apiService.getToken();
       final userJson = await _storage.read(key: AppConstants.userKey);
-      if (userJson != null) {
+      
+      if (token == null || userJson == null) {
+        return null;
+      }
+
+      // Verify token is still valid by making a test API call
+      try {
+        await _apiService.get('/auth/verify');
         final userData = json.decode(userJson);
         return User.fromJson(userData);
+      } catch (e) {
+        // Token is invalid, clear stored data
+        await logout();
+        return null;
       }
-      return null;
     } catch (e) {
       return null;
     }

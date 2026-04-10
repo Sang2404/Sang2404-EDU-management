@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:go_router/go_router.dart';
 
 import '../providers/auth_provider.dart';
 import '../utils/constants.dart';
@@ -34,8 +33,12 @@ class _LoginScreenState extends State<LoginScreen> {
       _passwordController.text,
     );
 
-    if (success && mounted) {
-      context.go('/home');
+    // No need to navigate manually - AuthWrapper will handle it
+    if (!success && mounted) {
+      // Show error if needed
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(authProvider.error ?? 'Đăng nhập thất bại')),
+      );
     }
   }
 

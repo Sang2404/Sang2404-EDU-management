@@ -475,485 +475,6 @@ exports.deleteCourseSection = async (req, res) => {
 };
 
 
-// --- SCHEDULES ---
-// Helper function to get day name in Vietnamese
-const getDayName = (day_of_week) => {
-  const dayNames = {
-    2: 'Thứ 2',
-    3: 'Thứ 3',
-    4: 'Thứ 4',
-    5: 'Thứ 5',
-    6: 'Thứ 6',
-    7: 'Thứ 7',
-    8: 'Chủ nhật'
-  };
-  return dayNames[day_of_week] || '';
-};
-
-exports.getAllSchedules = async (req, res) => {
-  try {
-    const { semester, academic_year, day_of_week } = req.query;
-    
-    const query = `
-      SELECT 
-        s.schedule_id,
-        s.section_id,
-        s.day_of_week,
-        s.start_period as period_start,
-        s.end_period as period_end,
-        s.room,
-        s.week,
-        cs.section_code,
-        sub.subject_name,
-        u.full_name as lecturer_name,
-        cs.semester,
-        cs.academic_year
-      FROM schedules s
-      JOIN course_sections cs ON s.section_id = cs.section_id
-      JOIN subjects sub ON cs.subject_id = sub.subject_id
-      JOIN lecturers l ON cs.lecturer_id = l.lecturer_id
-      JOIN users u ON l.user_id = u.user_id
-      WHERE ($1::text IS NULL OR cs.semester = $1)
-        AND ($2::text IS NULL OR cs.academic_year = $2)
-        AND ($3::integer IS NULL OR s.day_of_week = $3)
-      ORDER BY s.week, s.day_of_week, s.start_period, s.room
-    `;
-    
-    const result = await pool.query(query, [
-      semester || null, 
-      academic_year || null,
-      day_of_week ? parseInt(day_of_week) : null
-    ]);
-    
-    res.json(result.rows);
-  } catch (error) {
-    console.error('Error getting all schedules:', error);
-    res.status(500).json({ error: error.message });
-  }
-};
-
-exports.createSchedule = async (req, res) => {
-  try {
-    const { section_id, day_of_week, start_period, end_period, room, week, override_conflicts } = req.body;
-    
-    // Validate required fields
-    if (!section_id) {
-      return res.status(400).json({ error: 'section_id is required' });
-    }
-    if (!day_of_week) {
-      return res.status(400).json({ error: 'day_of_week is required' });
-    }
-    if (!start_period) {
-      return res.status(400).json({ error: 'start_period is required' });
-    }
-    if (!end_period) {
-      return res.status(400).json({ error: 'end_period is required' });
-    }
-    if (!week) {
-      return res.status(400).json({ error: 'week is required' });
-    }
-    
-    // Validate data types and ranges
-    if (typeof day_of_week !== 'number' || day_of_week < 2 || day_of_week > 8) {
-      return res.status(400).json({ error: 'day_of_week must be between 2 and 8' });
-    }
-    if (typeof start_period !== 'number' || start_period < 1 || start_period > 15) {
-      return res.status(400).json({ error: 'start_period must be between 1 and 15' });
-    }
-    if (typeof end_period !== 'number' || end_period < 1 || end_period > 15) {
-      return res.status(400).json({ error: 'end_period must be between 1 and 15' });
-    }
-    if (start_period >= end_period) {
-      return res.status(400).json({ error: 'start_period must be less than end_period' });
-    }
-    
-    // Check if course section exists
-    const sectionCheck = await pool.query(
-      'SELECT section_id, lecturer_id, semester, academic_year FROM course_sections WHERE section_id = $1',
-      [section_id]
-    );
-    if (sectionCheck.rows.length === 0) {
-      return res.status(400).json({ error: 'Course section does not exist' });
-    }
-    
-    const section = sectionCheck.rows[0];
-    const conflicts = [];
-    
-    // Check for room conflict
-    if (room) {
-      const roomConflict = await pool.query(
-        `SELECT s.schedule_id, s.room, s.start_period, s.end_period, cs.section_code, sub.subject_name
-         FROM schedules s
-         JOIN course_sections cs ON s.section_id = cs.section_id
-         JOIN subjects sub ON cs.subject_id = sub.subject_id
-         WHERE s.room = $1
-           AND s.day_of_week = $2
-           AND s.week = $3
-           AND cs.semester = $4
-           AND cs.academic_year = $5
-           AND (
-             (s.start_period <= $6 AND s.end_period > $6) OR
-             (s.start_period < $7 AND s.end_period >= $7) OR
-             (s.start_period >= $6 AND s.end_period <= $7)
-           )`,
-        [room, day_of_week, week, section.semester, section.academic_year, start_period, end_period]
-      );
-      
-      if (roomConflict.rows.length > 0) {
-        conflicts.push({
-          type: 'room',
-          message: `Phòng ${room} đã có lớp ${roomConflict.rows[0].section_code} (${roomConflict.rows[0].subject_name}) vào ${getDayName(day_of_week)} tuần ${week} từ tiết ${roomConflict.rows[0].start_period} đến ${roomConflict.rows[0].end_period}`
-        });
-      }
-    }
-    
-    // Check for lecturer conflict
-    const lecturerConflict = await pool.query(
-      `SELECT s.schedule_id, s.start_period, s.end_period, sub.subject_name, s.room, s.week, cs.section_code
-       FROM schedules s
-       JOIN course_sections cs ON s.section_id = cs.section_id
-       JOIN subjects sub ON cs.subject_id = sub.subject_id
-       WHERE cs.lecturer_id = $1
-         AND s.day_of_week = $2
-         AND s.week = $3
-         AND cs.semester = $4
-         AND cs.academic_year = $5
-         AND (
-           (s.start_period <= $6 AND s.end_period > $6) OR
-           (s.start_period < $7 AND s.end_period >= $7) OR
-           (s.start_period >= $6 AND s.end_period <= $7)
-         )`,
-      [section.lecturer_id, day_of_week, week, section.semester, section.academic_year, start_period, end_period]
-    );
-    
-    if (lecturerConflict.rows.length > 0) {
-      conflicts.push({
-        type: 'lecturer',
-        message: `Giảng viên đang dạy lớp ${lecturerConflict.rows[0].section_code} (${lecturerConflict.rows[0].subject_name}) tại phòng ${lecturerConflict.rows[0].room} vào ${getDayName(day_of_week)} tuần ${week} từ tiết ${lecturerConflict.rows[0].start_period} đến ${lecturerConflict.rows[0].end_period}`
-      });
-    }
-    
-    // Check for student conflicts
-    const studentConflict = await pool.query(
-      `SELECT DISTINCT ss.student_id, u.full_name, s.schedule_id, s.start_period, s.end_period, 
-              sub.subject_name, s.room, s.week, cs.section_code
-       FROM section_students ss
-       JOIN schedules s ON s.section_id = $1
-       JOIN course_sections cs ON s.section_id = cs.section_id
-       JOIN subjects sub ON cs.subject_id = sub.subject_id
-       JOIN users u ON ss.student_id = u.user_id
-       WHERE ss.student_id IN (
-         SELECT ss2.student_id
-         FROM section_students ss2
-         JOIN schedules s2 ON s2.section_id = ss2.section_id
-         WHERE s2.day_of_week = $2
-           AND s2.week = $3
-           AND (
-             (s2.start_period <= $4 AND s2.end_period > $4) OR
-             (s2.start_period < $5 AND s2.end_period >= $5) OR
-             (s2.start_period >= $4 AND s2.end_period <= $5)
-           )
-       )
-       LIMIT 5`,
-      [section_id, day_of_week, week, start_period, end_period]
-    );
-    
-    if (studentConflict.rows.length > 0) {
-      const conflictCount = studentConflict.rows.length;
-      conflicts.push({
-        type: 'student',
-        message: `${conflictCount} sinh viên có xung đột lịch học vào ${getDayName(day_of_week)} tuần ${week} từ tiết ${start_period} đến ${end_period}`
-      });
-    }
-    
-    // If there are conflicts and override is not set, return warning
-    if (conflicts.length > 0 && !override_conflicts) {
-      return res.status(409).json({ 
-        error: 'Phát hiện xung đột lịch học',
-        conflicts: conflicts,
-        warning: 'Vui lòng kiểm tra các xung đột trên. Nếu muốn bỏ qua, hãy gửi lại yêu cầu với override_conflicts: true'
-      });
-    }
-    
-    // Insert schedule
-    const insertResult = await pool.query(
-      `INSERT INTO schedules (section_id, day_of_week, start_period, end_period, room, week)
-       VALUES ($1, $2, $3, $4, $5, $6)
-       RETURNING schedule_id, section_id, day_of_week, start_period, end_period, room, week`,
-      [section_id, day_of_week, start_period, end_period, room || null, week]
-    );
-    
-    const createdSchedule = insertResult.rows[0];
-    
-    res.status(201).json({
-      message: 'Tạo lịch học thành công',
-      data: createdSchedule,
-      conflicts_overridden: conflicts.length > 0 ? conflicts : null
-    });
-  } catch (error) {
-    console.error('Error creating schedule:', error);
-    res.status(500).json({ error: error.message });
-  }
-};
-
-exports.getSchedulesBySection = async (req, res) => {
-  try {
-    const { sectionId } = req.params;
-    
-    const result = await pool.query(
-      `SELECT schedule_id, section_id, day_of_week, start_period, end_period, room
-       FROM schedules
-       WHERE section_id = $1
-       ORDER BY day_of_week, start_period`,
-      [sectionId]
-    );
-    
-    // Add day names
-    const schedules = result.rows.map(schedule => ({
-      ...schedule,
-      day_name: getDayName(schedule.day_of_week)
-    }));
-    
-    res.json(schedules);
-  } catch (error) {
-    console.error('Error getting schedules:', error);
-    res.status(500).json({ error: error.message });
-  }
-};
-
-exports.getScheduleById = async (req, res) => {
-  try {
-    const { id } = req.params;
-    
-    const result = await pool.query(
-      `SELECT s.schedule_id, s.section_id, s.day_of_week, s.start_period, s.end_period, s.room,
-              cs.section_code, sub.subject_name
-       FROM schedules s
-       JOIN course_sections cs ON s.section_id = cs.section_id
-       JOIN subjects sub ON cs.subject_id = sub.subject_id
-       WHERE s.schedule_id = $1`,
-      [id]
-    );
-    
-    if (result.rows.length === 0) {
-      return res.status(404).json({ error: 'Schedule not found' });
-    }
-    
-    const schedule = {
-      ...result.rows[0],
-      day_name: getDayName(result.rows[0].day_of_week)
-    };
-    
-    res.json(schedule);
-  } catch (error) {
-    console.error('Error getting schedule:', error);
-    res.status(500).json({ error: error.message });
-  }
-};
-
-exports.updateSchedule = async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { section_id, day_of_week, start_period, end_period, room, week, override_conflicts } = req.body;
-    
-    // Check if schedule exists
-    const existsCheck = await pool.query(
-      'SELECT schedule_id FROM schedules WHERE schedule_id = $1',
-      [id]
-    );
-    if (existsCheck.rows.length === 0) {
-      return res.status(404).json({ error: 'Schedule not found' });
-    }
-    
-    // Validate required fields
-    if (!section_id) {
-      return res.status(400).json({ error: 'section_id is required' });
-    }
-    if (!day_of_week) {
-      return res.status(400).json({ error: 'day_of_week is required' });
-    }
-    if (!start_period) {
-      return res.status(400).json({ error: 'start_period is required' });
-    }
-    if (!end_period) {
-      return res.status(400).json({ error: 'end_period is required' });
-    }
-    if (!week) {
-      return res.status(400).json({ error: 'week is required' });
-    }
-    
-    // Validate data types and ranges
-    if (typeof day_of_week !== 'number' || day_of_week < 2 || day_of_week > 8) {
-      return res.status(400).json({ error: 'day_of_week must be between 2 and 8' });
-    }
-    if (typeof start_period !== 'number' || start_period < 1 || start_period > 15) {
-      return res.status(400).json({ error: 'start_period must be between 1 and 15' });
-    }
-    if (typeof end_period !== 'number' || end_period < 1 || end_period > 15) {
-      return res.status(400).json({ error: 'end_period must be between 1 and 15' });
-    }
-    if (start_period >= end_period) {
-      return res.status(400).json({ error: 'start_period must be less than end_period' });
-    }
-    if (typeof week !== 'number' || week < 1 || week > 16) {
-      return res.status(400).json({ error: 'week must be between 1 and 16' });
-    }
-    
-    // Check if course section exists
-    const sectionCheck = await pool.query(
-      'SELECT section_id, lecturer_id, semester, academic_year FROM course_sections WHERE section_id = $1',
-      [section_id]
-    );
-    if (sectionCheck.rows.length === 0) {
-      return res.status(400).json({ error: 'Course section does not exist' });
-    }
-    
-    const section = sectionCheck.rows[0];
-    const conflicts = [];
-    
-    // Check for room conflict (excluding current schedule)
-    if (room) {
-      const roomConflict = await pool.query(
-        `SELECT s.schedule_id, s.room, s.start_period, s.end_period, cs.section_code, sub.subject_name
-         FROM schedules s
-         JOIN course_sections cs ON s.section_id = cs.section_id
-         JOIN subjects sub ON cs.subject_id = sub.subject_id
-         WHERE s.room = $1
-           AND s.day_of_week = $2
-           AND s.week = $3
-           AND cs.semester = $4
-           AND cs.academic_year = $5
-           AND s.schedule_id != $6
-           AND (
-             (s.start_period <= $7 AND s.end_period > $7) OR
-             (s.start_period < $8 AND s.end_period >= $8) OR
-             (s.start_period >= $7 AND s.end_period <= $8)
-           )`,
-        [room, day_of_week, week, section.semester, section.academic_year, id, start_period, end_period]
-      );
-      
-      if (roomConflict.rows.length > 0) {
-        conflicts.push({
-          type: 'room',
-          message: `Phòng ${room} đã có lớp ${roomConflict.rows[0].section_code} (${roomConflict.rows[0].subject_name}) vào ${getDayName(day_of_week)} tuần ${week} từ tiết ${roomConflict.rows[0].start_period} đến ${roomConflict.rows[0].end_period}`
-        });
-      }
-    }
-    
-    // Check for lecturer conflict (excluding current schedule, same week)
-    const lecturerConflict = await pool.query(
-      `SELECT s.schedule_id, s.start_period, s.end_period, sub.subject_name, s.room, s.week, cs.section_code
-       FROM schedules s
-       JOIN course_sections cs ON s.section_id = cs.section_id
-       JOIN subjects sub ON cs.subject_id = sub.subject_id
-       WHERE cs.lecturer_id = $1
-         AND s.day_of_week = $2
-         AND s.week = $3
-         AND cs.semester = $4
-         AND cs.academic_year = $5
-         AND s.schedule_id != $6
-         AND (
-           (s.start_period <= $7 AND s.end_period > $7) OR
-           (s.start_period < $8 AND s.end_period >= $8) OR
-           (s.start_period >= $7 AND s.end_period <= $8)
-         )`,
-      [section.lecturer_id, day_of_week, week, section.semester, section.academic_year, id, start_period, end_period]
-    );
-    
-    if (lecturerConflict.rows.length > 0) {
-      conflicts.push({
-        type: 'lecturer',
-        message: `Giảng viên đang dạy lớp ${lecturerConflict.rows[0].section_code} (${lecturerConflict.rows[0].subject_name}) tại phòng ${lecturerConflict.rows[0].room} vào ${getDayName(day_of_week)} tuần ${week} từ tiết ${lecturerConflict.rows[0].start_period} đến ${lecturerConflict.rows[0].end_period}`
-      });
-    }
-    
-    // Check for student conflicts
-    const studentConflict = await pool.query(
-      `SELECT DISTINCT ss.student_id, u.full_name, s.schedule_id, s.start_period, s.end_period, 
-              sub.subject_name, s.room, s.week, cs.section_code
-       FROM section_students ss
-       JOIN schedules s ON s.section_id = $1
-       JOIN course_sections cs ON s.section_id = cs.section_id
-       JOIN subjects sub ON cs.subject_id = sub.subject_id
-       JOIN users u ON ss.student_id = u.user_id
-       WHERE ss.student_id IN (
-         SELECT ss2.student_id
-         FROM section_students ss2
-         JOIN schedules s2 ON s2.section_id = ss2.section_id
-         WHERE s2.day_of_week = $2
-           AND s2.week = $3
-           AND s2.schedule_id != $4
-           AND (
-             (s2.start_period <= $5 AND s2.end_period > $5) OR
-             (s2.start_period < $6 AND s2.end_period >= $6) OR
-             (s2.start_period >= $5 AND s2.end_period <= $6)
-           )
-       )
-       LIMIT 5`,
-      [section_id, day_of_week, week, id, start_period, end_period]
-    );
-    
-    if (studentConflict.rows.length > 0) {
-      const conflictCount = studentConflict.rows.length;
-      conflicts.push({
-        type: 'student',
-        message: `${conflictCount} sinh viên có xung đột lịch học vào ${getDayName(day_of_week)} tuần ${week} từ tiết ${start_period} đến ${end_period}`
-      });
-    }
-    
-    // If there are conflicts and override is not set, return warning
-    if (conflicts.length > 0 && !override_conflicts) {
-      return res.status(409).json({ 
-        error: 'Phát hiện xung đột lịch học',
-        conflicts: conflicts,
-        warning: 'Vui lòng kiểm tra các xung đột trên. Nếu muốn bỏ qua, hãy gửi lại yêu cầu với override_conflicts: true'
-      });
-    }
-    
-    // Update schedule
-    const updateResult = await pool.query(
-      `UPDATE schedules
-       SET section_id = $1, day_of_week = $2, start_period = $3, end_period = $4, room = $5, week = $6
-       WHERE schedule_id = $7
-       RETURNING schedule_id, section_id, day_of_week, start_period, end_period, room, week`,
-      [section_id, day_of_week, start_period, end_period, room || null, week, id]
-    );
-    
-    res.json({
-      message: 'Cập nhật lịch học thành công',
-      data: updateResult.rows[0],
-      conflicts_overridden: conflicts.length > 0 ? conflicts : null
-    });
-  } catch (error) {
-    console.error('Error updating schedule:', error);
-    res.status(500).json({ error: error.message });
-  }
-};
-
-exports.deleteSchedule = async (req, res) => {
-  try {
-    const { id } = req.params;
-    
-    // Check if schedule exists
-    const existsCheck = await pool.query(
-      'SELECT schedule_id FROM schedules WHERE schedule_id = $1',
-      [id]
-    );
-    if (existsCheck.rows.length === 0) {
-      return res.status(404).json({ error: 'Schedule not found' });
-    }
-    
-    // Delete schedule
-    await pool.query('DELETE FROM schedules WHERE schedule_id = $1', [id]);
-    
-    res.json({ message: 'Xóa lịch học thành công' });
-  } catch (error) {
-    console.error('Error deleting schedule:', error);
-    res.status(500).json({ error: error.message });
-  }
-};
-
-
 // --- SECTION STUDENTS (Enrollment Management) ---
 exports.addStudentToSection = async (req, res) => {
   try {
@@ -1337,5 +858,161 @@ exports.getSectionsForStudent = async (req, res) => {
   } catch (error) {
     console.error('Error getting sections for student:', error);
     res.status(500).json({ error: error.message });
+  }
+};
+// Mobile app endpoints
+exports.getStudentSchedule = async (req, res) => {
+  try {
+    const studentId = req.user.student_id;
+    
+    if (!studentId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Không tìm thấy thông tin sinh viên'
+      });
+    }
+
+    const query = `
+      SELECT 
+        s.schedule_id,
+        s.day_of_week,
+        s.start_period,
+        s.end_period,
+        s.room,
+        cs.section_code as section_name,
+        sub.subject_name,
+        sub.credits,
+        l.full_name as lecturer_name
+      FROM schedules s
+      JOIN course_sections cs ON s.section_id = cs.section_id
+      JOIN subjects sub ON cs.subject_id = sub.subject_id
+      JOIN lecturers lec ON cs.lecturer_id = lec.lecturer_id
+      JOIN users l ON lec.user_id = l.user_id
+      JOIN section_students ss ON cs.section_id = ss.section_id
+      WHERE ss.student_id = $1
+      ORDER BY s.day_of_week, s.start_period
+    `;
+
+    const result = await pool.query(query, [studentId]);
+    
+    res.json({
+      success: true,
+      schedules: result.rows
+    });
+  } catch (error) {
+    console.error('Error fetching student schedule:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Lỗi khi lấy lịch học',
+      error: error.message
+    });
+  }
+};
+
+exports.getStudentCourses = async (req, res) => {
+  try {
+    const studentId = req.user.student_id;
+    
+    if (!studentId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Không tìm thấy thông tin sinh viên'
+      });
+    }
+
+    const query = `
+      SELECT 
+        cs.section_id,
+        cs.section_code as section_name,
+        cs.semester,
+        cs.academic_year,
+        sub.subject_name,
+        sub.credits,
+        l.full_name as lecturer_name,
+        ss.registered_at as enrollment_date,
+        -- Get schedule info for this course
+        STRING_AGG(
+          CASE 
+            WHEN s.day_of_week = 2 THEN 'Thứ 2'
+            WHEN s.day_of_week = 3 THEN 'Thứ 3'
+            WHEN s.day_of_week = 4 THEN 'Thứ 4'
+            WHEN s.day_of_week = 5 THEN 'Thứ 5'
+            WHEN s.day_of_week = 6 THEN 'Thứ 6'
+            WHEN s.day_of_week = 7 THEN 'Thứ 7'
+            ELSE 'Chủ nhật'
+          END || ' (Tiết ' || s.start_period || '-' || s.end_period || ')',
+          ', '
+        ) as schedule_info,
+        STRING_AGG(DISTINCT s.room, ', ') as rooms
+      FROM course_sections cs
+      JOIN subjects sub ON cs.subject_id = sub.subject_id
+      JOIN lecturers lec ON cs.lecturer_id = lec.lecturer_id
+      JOIN users l ON lec.user_id = l.user_id
+      JOIN section_students ss ON cs.section_id = ss.section_id
+      LEFT JOIN schedules s ON cs.section_id = s.section_id
+      WHERE ss.student_id = $1
+      GROUP BY cs.section_id, cs.section_code, cs.semester, cs.academic_year, 
+               sub.subject_name, sub.credits, l.full_name, ss.registered_at
+      ORDER BY sub.subject_name
+    `;
+
+    const result = await pool.query(query, [studentId]);
+    
+    res.json({
+      success: true,
+      courses: result.rows
+    });
+  } catch (error) {
+    console.error('Error fetching student courses:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Lỗi khi lấy danh sách khóa học',
+      error: error.message
+    });
+  }
+};
+
+exports.getStudentSections = async (req, res) => {
+  try {
+    const studentId = req.user.student_id;
+    
+    if (!studentId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Không tìm thấy thông tin sinh viên'
+      });
+    }
+
+    // Get available sections that student can enroll in
+    const query = `
+      SELECT 
+        cs.section_id,
+        cs.section_code as section_name,
+        sub.subject_name,
+        sub.credits,
+        l.full_name as lecturer_name
+      FROM course_sections cs
+      JOIN subjects sub ON cs.subject_id = sub.subject_id
+      JOIN lecturers lec ON cs.lecturer_id = lec.lecturer_id
+      JOIN users l ON lec.user_id = l.user_id
+      WHERE cs.section_id NOT IN (
+        SELECT section_id FROM section_students WHERE student_id = $1
+      )
+      ORDER BY sub.subject_name, cs.section_code
+    `;
+
+    const result = await pool.query(query, [studentId]);
+    
+    res.json({
+      success: true,
+      sections: result.rows
+    });
+  } catch (error) {
+    console.error('Error fetching available sections:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Lỗi khi lấy danh sách lớp học',
+      error: error.message
+    });
   }
 };

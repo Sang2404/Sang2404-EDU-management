@@ -171,3 +171,111 @@ exports.getStudentRequests = async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 };
+// Mobile app endpoints
+exports.getStudentRequestsMobile = async (req, res) => {
+  try {
+    const studentId = req.user.student_id;
+    
+    if (!studentId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Không tìm thấy thông tin sinh viên'
+      });
+    }
+
+    const query = `
+      SELECT 
+        ar.request_id,
+        ar.request_type,
+        ar.status,
+        ar.reason,
+        ar.created_at,
+        ar.updated_at,
+        ar.admin_response,
+        CASE 
+          WHEN ar.grade_id IS NOT NULL THEN 
+            json_build_object(
+              'subject_name', sub.subject_name,
+              'section_name', cs.section_code,
+              'average', g.total_10
+            )
+          ELSE NULL
+        END as details
+      FROM academic_requests ar
+      LEFT JOIN grades g ON ar.grade_id = g.grade_id
+      LEFT JOIN course_sections cs ON g.section_id = cs.section_id
+      LEFT JOIN subjects sub ON cs.subject_id = sub.subject_id
+      WHERE ar.student_id = $1
+      ORDER BY ar.created_at DESC
+    `;
+
+    const result = await pool.query(query, [studentId]);
+    
+    res.json({
+      success: true,
+      requests: result.rows
+    });
+  } catch (error) {
+    console.error('Error fetching student requests:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Lỗi khi lấy danh sách yêu cầu',
+      error: error.message
+    });
+  }
+};
+
+exports.createRequestMobile = async (req, res) => {
+  try {
+    const studentId = req.user.student_id;
+    const { request_type, grade_id, reason } = req.body;
+    
+    if (!studentId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Không tìm thấy thông tin sinh viên'
+      });
+    }
+
+    if (!request_type || !reason) {
+      return res.status(400).json({
+        success: false,
+        message: 'Thiếu thông tin bắt buộc'
+      });
+    }
+
+    // For now, only support REVIEW requests with grade_id
+    if (request_type === 'REVIEW' && !grade_id) {
+      return res.status(400).json({
+        success: false,
+        message: 'Yêu cầu phúc khảo cần có grade_id'
+      });
+    }
+
+    const query = `
+      INSERT INTO academic_requests (student_id, request_type, grade_id, reason, status, created_at)
+      VALUES ($1, $2, $3, $4, 'PENDING', NOW())
+      RETURNING *
+    `;
+
+    const result = await pool.query(query, [
+      studentId,
+      request_type,
+      grade_id || null,
+      reason
+    ]);
+
+    res.json({
+      success: true,
+      message: 'Tạo yêu cầu thành công',
+      request: result.rows[0]
+    });
+  } catch (error) {
+    console.error('Error creating request:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Lỗi khi tạo yêu cầu',
+      error: error.message
+    });
+  }
+};

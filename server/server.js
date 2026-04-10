@@ -7,9 +7,9 @@ const pool = require('./config/db'); // Import pool
 
 // Import Routes
 const authRoutes = require('./routes/auth');
-const userRoutes = require('./routes/users');
 const academicRoutes = require('./routes/academic');
 const schedulesRoutes = require('./routes/schedules');
+const fastSchedulesRoutes = require('./routes/fastSchedules');
 const lecturersRoutes = require('./routes/lecturers');
 const gradesRoutes = require('./routes/grades');
 const adminRoutes = require('./routes/admin');
@@ -37,9 +37,9 @@ const port = process.env.PORT || 5000;
 
 // Middleware
 app.use(cors({
-    origin: '*', // Allow all origins for dev
-    methods: ['GET', 'POST', 'PUT', 'DELETE'],
-    allowedHeaders: ['Content-Type', 'Authorization']
+  origin: '*', // Allow all origins for dev
+  methods: ['GET', 'POST', 'PUT', 'DELETE'],
+  allowedHeaders: ['Content-Type', 'Authorization']
 }));
 app.use(express.json());
 
@@ -64,8 +64,8 @@ app.use((req, res, next) => {
     // HTML files - cache for 1 hour with revalidation
     res.set('Cache-Control', 'public, max-age=3600, must-revalidate');
   } else if (req.path.startsWith('/api/')) {
-    // API responses - cache for 5 minutes
-    res.set('Cache-Control', 'public, max-age=300');
+    // API responses - Không dùng cache tĩnh để đảm bảo tính real-time hoạt động đúng
+    res.set('Cache-Control', 'no-cache, no-store, must-revalidate');
   } else {
     // Default - no cache
     res.set('Cache-Control', 'no-cache, no-store, must-revalidate');
@@ -75,9 +75,9 @@ app.use((req, res, next) => {
 
 // Routes
 app.use('/api/auth', authRoutes);
-app.use('/api/users', userRoutes);
 app.use('/api/academic', academicRoutes);
 app.use('/api/schedules', schedulesRoutes);
+app.use('/api/fast-schedules', fastSchedulesRoutes);
 app.use('/api/lecturers', lecturersRoutes);
 app.use('/api/grades', gradesRoutes);
 app.use('/api/admin', adminRoutes);
@@ -99,9 +99,9 @@ app.get('/api/test-db', async (req, res) => {
   try {
     // Thử truy vấn cơ sở dữ liệu
     const result = await pool.query('SELECT NOW()');
-    res.json({ 
-      status: 'success', 
-      message: 'Kết nối Database thành công', 
+    res.json({
+      status: 'success',
+      message: 'Kết nối Database thành công',
       server_time: result.rows[0].now,
       db_config: {
         user: process.env.DB_USER,
@@ -113,9 +113,9 @@ app.get('/api/test-db', async (req, res) => {
     });
   } catch (err) {
     console.error('Lỗi Kết nối Database tại /api/test-db:', err);
-    res.status(500).json({ 
-      status: 'error', 
-      message: 'Kết nối Database thất bại', 
+    res.status(500).json({
+      status: 'error',
+      message: 'Kết nối Database thất bại',
       error_detail: err.message,
       code: err.code
     });

@@ -17,6 +17,7 @@ const getDayName = (day_of_week) => {
 exports.getStudentSchedule = async (req, res) => {
   try {
     const { studentId } = req.params;
+    const { semester, academic_year, week } = req.query;
     
     const query = `
       SELECT 
@@ -29,6 +30,7 @@ exports.getStudentSchedule = async (req, res) => {
         s.start_period,
         s.end_period,
         s.room,
+        s.week,
         cs.semester,
         cs.academic_year,
         cs.section_code
@@ -39,10 +41,14 @@ exports.getStudentSchedule = async (req, res) => {
       JOIN lecturers l ON cs.lecturer_id = l.lecturer_id
       JOIN users u ON l.user_id = u.user_id
       WHERE ss.student_id = $1
+        AND ($2::text IS NULL OR cs.semester = $2)
+        AND ($3::text IS NULL OR cs.academic_year = $3)
+        AND ($4::integer IS NULL OR s.week = $4)
       ORDER BY s.day_of_week, s.start_period
     `;
     
-    const result = await pool.query(query, [studentId]);
+    const weekNumber = week ? parseInt(week.replace('week', '')) : null;
+    const result = await pool.query(query, [studentId, semester || null, academic_year || null, weekNumber]);
     
     // Add day names
     const schedules = result.rows.map(schedule => ({

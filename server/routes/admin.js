@@ -21,5 +21,4 @@ router.post('/academic-requests/:requestId/reject', adminController.rejectReques
 router.post('/import/users', adminController.bulkImportUsers);
 router.post('/import/subjects', adminController.bulkImportSubjects);
 router.post('/import/course-sections', adminController.bulkImportCourseSections);
-router.post('/import/schedules', adminController.bulkImportSchedules);
 router.post('/import/faculties', adminController.bulkImportFaculties);

@@ -44,23 +44,44 @@ class Grade {
       studentId: json['student_id']?.toString() ?? '',
       subjectName: json['subject_name'] ?? '',
       subjectId: json['subject_id'] ?? '',
-      sectionCode: json['section_code'] ?? '',
+      sectionCode: json['section_name'] ?? json['section_code'] ?? '',
       lecturerName: json['lecturer_name'] ?? '',
-      attendance: json['attendance']?.toDouble(),
-      midterm: json['midterm']?.toDouble(),
-      final_: json['final']?.toDouble(),
-      average: json['average']?.toDouble(),
+      attendance: _parseDouble(json['attendance']),
+      midterm: _parseDouble(json['midterm']),
+      final_: _parseDouble(json['final']),
+      average: _parseDouble(json['average']),
       letterGrade: json['letter_grade'],
       credits: json['credits'] ?? 0,
-      semester: json['semester'] ?? '',
-      academicYear: json['academic_year'] ?? '',
+      semester: json['semester'] ?? 'HK1',
+      academicYear: json['academic_year'] ?? '2024-2025',
       createdAt: json['created_at'] != null ? DateTime.parse(json['created_at']) : null,
       updatedAt: json['updated_at'] != null ? DateTime.parse(json['updated_at']) : null,
     );
   }
 
+  static double? _parseDouble(dynamic value) {
+    if (value == null) return null;
+    if (value is double) return value;
+    if (value is int) return value.toDouble();
+    if (value is String) {
+      // Trim whitespace and handle empty strings
+      final trimmed = value.trim();
+      if (trimmed.isEmpty) return null;
+      try {
+        return double.parse(trimmed);
+      } catch (e) {
+        print('Error parsing double from string: "$value" - $e');
+        return null;
+      }
+    }
+    print('Unexpected value type for double parsing: $value (${value.runtimeType})');
+    return null;
+  }
+
   bool get isComplete {
-    return attendance != null && midterm != null && final_ != null;
+    // Có điểm trung bình hoặc có ít nhất một trong các điểm thành phần
+    return average != null && average! > 0 || 
+           (attendance != null || midterm != null || final_ != null);
   }
 
   bool get isPassing {

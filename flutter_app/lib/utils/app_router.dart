@@ -13,23 +13,6 @@ import '../screens/requests_screen.dart';
 class AppRouter {
   static final GoRouter router = GoRouter(
     initialLocation: '/login',
-    redirect: (context, state) {
-      final authProvider = context.read<AuthProvider>();
-      final isLoggedIn = authProvider.isLoggedIn;
-      final isLoginRoute = state.matchedLocation == '/login';
-
-      // If not logged in and not on login page, redirect to login
-      if (!isLoggedIn && !isLoginRoute) {
-        return '/login';
-      }
-
-      // If logged in and on login page, redirect to home
-      if (isLoggedIn && isLoginRoute) {
-        return '/home';
-      }
-
-      return null;
-    },
     routes: [
       GoRoute(
         path: '/login',
