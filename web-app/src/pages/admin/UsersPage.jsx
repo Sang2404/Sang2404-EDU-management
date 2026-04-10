@@ -26,7 +26,7 @@ const UsersPage = () => {
   const fetchUsers = async (page = 1, role = '') => {
     setLoading(true);
     try {
-      const response = await api.get('/users', {
+      const response = await api.get('/admin/users', {
         params: {
           page,
           limit: pagination.pageSize,
@@ -84,11 +84,11 @@ const UsersPage = () => {
     try {
       if (editingUser) {
         // Update existing user
-        await api.put(`/users/${editingUser.user_id}`, values);
+        await api.put(`/admin/users/${editingUser.user_id}`, values);
         message.success('Cập nhật người dùng thành công');
       } else {
         // Create new user
-        await api.post('/users', values);
+        await api.post('/admin/users', values);
         message.success('Thêm người dùng thành công');
       }
       setIsModalVisible(false);
@@ -102,7 +102,7 @@ const UsersPage = () => {
   // Delete user
   const handleDelete = async (userId) => {
     try {
-      await api.delete(`/users/${userId}`);
+      await api.delete(`/admin/users/${userId}`);
       message.success('Xóa người dùng thành công');
       fetchUsers(pagination.current, roleFilter);
     } catch (error) {
@@ -113,7 +113,7 @@ const UsersPage = () => {
   // Toggle user active status (Lock/Unlock)
   const handleToggleActive = async (user) => {
     try {
-      await api.put(`/users/${user.user_id}`, {
+      await api.put(`/admin/users/${user.user_id}`, {
         is_active: !user.is_active
       });
       message.success(user.is_active ? 'Đã khóa tài khoản' : 'Đã mở khóa tài khoản');

@@ -1252,3 +1252,335 @@ exports.bulkRejectGrades = async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 };
+
+// ===== USER MANAGEMENT FUNCTIONS =====
+
+// Get all users with pagination and filtering
+exports.getAllUsers = async (req, res) => {
+  try {
+    const { page = 1, limit = 10, role } = req.query;
+    const offset = (page - 1) * limit;
+    
+    let query = `
+      SELECT 
+        u.user_id,
+        u.email,
+        u.username,
+        u.full_name,
+        u.role,
+        u.is_active,
+        u.created_at
+      FROM users u
+      WHERE 1=1
+    `;
+    
+    const params = [];
+    let paramIndex = 1;
+    
+    // Add role filter if provided
+    if (role) {
+      query += ` AND u.role = $${paramIndex}`;
+      params.push(role);
+      paramIndex++;
+    }
+    
+    // Get total count
+    const countQuery = query.replace('SELECT u.user_id, u.email, u.username, u.full_name, u.role, u.is_active, u.created_at FROM users u', 'SELECT COUNT(*) as count FROM users u');
+    const countResult = await pool.query(countQuery, params);
+    const totalUsers = parseInt(countResult.rows[0].count);
+    
+    // Add pagination
+    query += ` ORDER BY u.created_at DESC LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`;
+    params.push(limit, offset);
+    
+    const result = await pool.query(query, params);
+    
+    res.json({
+      users: result.rows,
+      totalUsers,
+      currentPage: parseInt(page),
+      totalPages: Math.ceil(totalUsers / limit)
+    });
+  } catch (error) {
+    console.error('Error getting users:', error);
+    res.status(500).json({ error: error.message });
+  }
+};
+
+// Get user by ID
+exports.getUserById = async (req, res) => {
+  try {
+    const { userId } = req.params;
+    
+    const query = `
+      SELECT 
+        u.user_id,
+        u.email,
+        u.username,
+        u.full_name,
+        u.role,
+        u.is_active,
+        u.created_at
+      FROM users u
+      WHERE u.user_id = $1
+    `;
+    
+    const result = await pool.query(query, [userId]);
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Không tìm thấy người dùng' });
+    }
+    
+    res.json(result.rows[0]);
+  } catch (error) {
+    console.error('Error getting user by ID:', error);
+    res.status(500).json({ error: error.message });
+  }
+};
+
+// Create new user
+exports.createUser = async (req, res) => {
+  try {
+    const { email, username, full_name, role, is_active = true } = req.body;
+    
+    // Validate required fields
+    if (!email || !username || !full_name || !role) {
+      return res.status(400).json({ 
+        error: 'Thiếu thông tin bắt buộc (email, username, full_name, role)' 
+      });
+    }
+    
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      return res.status(400).json({ error: 'Email không hợp lệ' });
+    }
+    
+    // Validate role
+    if (!['STUDENT', 'LECTURER', 'ADMIN'].includes(role)) {
+      return res.status(400).json({ 
+        error: 'Vai trò không hợp lệ (phải là STUDENT, LECTURER hoặc ADMIN)' 
+      });
+    }
+    
+    // Check if user already exists
+    const existingUser = await pool.query(
+      'SELECT * FROM users WHERE email = $1 OR username = $2',
+      [email, username]
+    );
+    
+    if (existingUser.rows.length > 0) {
+      const existing = existingUser.rows[0];
+      if (existing.email === email) {
+        return res.status(409).json({ error: 'Email đã tồn tại' });
+      }
+      if (existing.username === username) {
+        return res.status(409).json({ error: 'Mã người dùng đã tồn tại' });
+      }
+    }
+    
+    // Insert user
+    const insertUserQuery = `
+      INSERT INTO users (email, username, full_name, role, is_active)
+      VALUES ($1, $2, $3, $4, $5)
+      RETURNING user_id, email, username, full_name, role, is_active, created_at
+    `;
+    
+    const userResult = await pool.query(insertUserQuery, [
+      email,
+      username,
+      full_name,
+      role,
+      is_active
+    ]);
+    
+    const newUser = userResult.rows[0];
+    
+    // Insert into role-specific table
+    if (role === 'STUDENT') {
+      await pool.query(
+        'INSERT INTO students (user_id, student_id) VALUES ($1, $2)',
+        [newUser.user_id, username]
+      );
+    } else if (role === 'LECTURER') {
+      await pool.query(
+        'INSERT INTO lecturers (user_id, lecturer_id) VALUES ($1, $2)',
+        [newUser.user_id, username]
+      );
+    }
+    
+    res.status(201).json({
+      message: 'Tạo người dùng thành công',
+      user: newUser
+    });
+  } catch (error) {
+    console.error('Error creating user:', error);
+    res.status(500).json({ error: error.message });
+  }
+};
+
+// Update user
+exports.updateUser = async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const { email, username, full_name, role, is_active } = req.body;
+    
+    // Check if user exists
+    const userCheck = await pool.query(
+      'SELECT * FROM users WHERE user_id = $1',
+      [userId]
+    );
+    
+    if (userCheck.rows.length === 0) {
+      return res.status(404).json({ error: 'Không tìm thấy người dùng' });
+    }
+    
+    const currentUser = userCheck.rows[0];
+    
+    // Validate email format if provided
+    if (email) {
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(email)) {
+        return res.status(400).json({ error: 'Email không hợp lệ' });
+      }
+      
+      // Check if email is taken by another user
+      if (email !== currentUser.email) {
+        const emailCheck = await pool.query(
+          'SELECT user_id FROM users WHERE email = $1 AND user_id != $2',
+          [email, userId]
+        );
+        
+        if (emailCheck.rows.length > 0) {
+          return res.status(409).json({ error: 'Email đã được sử dụng bởi người dùng khác' });
+        }
+      }
+    }
+    
+    // Validate role if provided
+    if (role && !['STUDENT', 'LECTURER', 'ADMIN'].includes(role)) {
+      return res.status(400).json({ 
+        error: 'Vai trò không hợp lệ (phải là STUDENT, LECTURER hoặc ADMIN)' 
+      });
+    }
+    
+    // Build update query dynamically
+    const updates = [];
+    const values = [];
+    let paramIndex = 1;
+    
+    if (email !== undefined) {
+      updates.push(`email = $${paramIndex}`);
+      values.push(email);
+      paramIndex++;
+    }
+    
+    if (full_name !== undefined) {
+      updates.push(`full_name = $${paramIndex}`);
+      values.push(full_name);
+      paramIndex++;
+    }
+    
+    if (role !== undefined) {
+      updates.push(`role = $${paramIndex}`);
+      values.push(role);
+      paramIndex++;
+    }
+    
+    if (is_active !== undefined) {
+      updates.push(`is_active = $${paramIndex}`);
+      values.push(is_active);
+      paramIndex++;
+    }
+    
+    if (updates.length === 0) {
+      return res.status(400).json({ error: 'Không có thông tin nào để cập nhật' });
+    }
+    
+    values.push(userId);
+    
+    const updateQuery = `
+      UPDATE users 
+      SET ${updates.join(', ')}
+      WHERE user_id = $${paramIndex}
+      RETURNING user_id, email, username, full_name, role, is_active, created_at
+    `;
+    
+    const result = await pool.query(updateQuery, values);
+    
+    res.json({
+      message: 'Cập nhật người dùng thành công',
+      user: result.rows[0]
+    });
+  } catch (error) {
+    console.error('Error updating user:', error);
+    res.status(500).json({ error: error.message });
+  }
+};
+
+// Delete user
+exports.deleteUser = async (req, res) => {
+  try {
+    const { userId } = req.params;
+    
+    // Check if user exists
+    const userCheck = await pool.query(
+      'SELECT * FROM users WHERE user_id = $1',
+      [userId]
+    );
+    
+    if (userCheck.rows.length === 0) {
+      return res.status(404).json({ error: 'Không tìm thấy người dùng' });
+    }
+    
+    const user = userCheck.rows[0];
+    
+    // Check if user has related data that would prevent deletion
+    const relatedDataChecks = [];
+    
+    if (user.role === 'STUDENT') {
+      // Check for grades, enrollments, etc.
+      const studentCheck = await pool.query(
+        'SELECT COUNT(*) FROM grades WHERE student_id = (SELECT student_id FROM students WHERE user_id = $1)',
+        [userId]
+      );
+      
+      if (parseInt(studentCheck.rows[0].count) > 0) {
+        relatedDataChecks.push('điểm số');
+      }
+    } else if (user.role === 'LECTURER') {
+      // Check for course sections
+      const lecturerCheck = await pool.query(
+        'SELECT COUNT(*) FROM course_sections WHERE lecturer_id = (SELECT lecturer_id FROM lecturers WHERE user_id = $1)',
+        [userId]
+      );
+      
+      if (parseInt(lecturerCheck.rows[0].count) > 0) {
+        relatedDataChecks.push('lớp học phần');
+      }
+    }
+    
+    if (relatedDataChecks.length > 0) {
+      return res.status(409).json({ 
+        error: `Không thể xóa người dùng vì còn dữ liệu liên quan: ${relatedDataChecks.join(', ')}` 
+      });
+    }
+    
+    // Delete from role-specific table first
+    if (user.role === 'STUDENT') {
+      await pool.query('DELETE FROM students WHERE user_id = $1', [userId]);
+    } else if (user.role === 'LECTURER') {
+      await pool.query('DELETE FROM lecturers WHERE user_id = $1', [userId]);
+    }
+    
+    // Delete user
+    await pool.query('DELETE FROM users WHERE user_id = $1', [userId]);
+    
+    res.json({
+      message: 'Xóa người dùng thành công'
+    });
+  } catch (error) {
+    console.error('Error deleting user:', error);
+    res.status(500).json({ error: error.message });
+  }
+};

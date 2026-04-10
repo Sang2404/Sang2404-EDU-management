@@ -468,3 +468,208 @@ exports.getStudentGradesMobile = async (req, res) => {
     });
   }
 };
+
+// Debug endpoint to check GPA calculation for a specific student
+exports.debugStudentGPA = async (req, res) => {
+  try {
+    const { studentId } = req.params;
+    
+    console.log(`🔍 Debug GPA for student: ${studentId}`);
+    
+    // Get all grades for the student
+    const gradesQuery = `
+      SELECT 
+        g.grade_id,
+        cs.section_id,
+        cs.section_code,
+        cs.subject_id,
+        s.subject_name,
+        s.credits,
+        u.full_name as lecturer_name,
+        cs.semester,
+        cs.academic_year,
+        g.attendance,
+        g.midterm,
+        g.final,
+        g.total_10,
+        g.total_4,
+        g.grade_char,
+        g.status
+      FROM grades g
+      JOIN course_sections cs ON g.section_id = cs.section_id
+      JOIN subjects s ON cs.subject_id = s.subject_id
+      JOIN lecturers l ON cs.lecturer_id = l.lecturer_id
+      JOIN users u ON l.user_id = u.user_id
+      WHERE g.student_id = $1
+      ORDER BY cs.academic_year DESC, cs.semester, s.subject_name
+    `;
+    
+    const gradesResult = await pool.query(gradesQuery, [studentId]);
+    const grades = gradesResult.rows;
+    
+    // Calculate GPA step by step
+    let totalCredits = 0;
+    let totalGradePoints = 0;
+    let passedCredits = 0;
+    let gradesWithScores = 0;
+    
+    const gradeDetails = grades.map(grade => {
+      const total10 = grade.total_10 != null ? parseFloat(grade.total_10) : null;
+      const total4 = grade.total_4 != null ? parseFloat(grade.total_4) : null;
+      const credits = grade.credits || 0;
+      
+      // Check if grade has scores
+      const hasScores = total10 != null && !isNaN(total10);
+      
+      let gradeChar = grade.grade_char;
+      let passed = false;
+      
+      if (hasScores) {
+        gradesWithScores++;
+        totalCredits += credits;
+        totalGradePoints += (total4 || 0) * credits;
+        
+        // Calculate grade char if not in DB
+        if (!gradeChar || gradeChar === 'null') {
+          if (total10 >= 9.0) gradeChar = 'A+';
+          else if (total10 >= 8.0) gradeChar = 'A';
+          else if (total10 >= 7.5) gradeChar = 'B+';
+          else if (total10 >= 7.0) gradeChar = 'B';
+          else if (total10 >= 6.0) gradeChar = 'C+';
+          else if (total10 >= 5.0) gradeChar = 'C';
+          else if (total10 >= 4.5) gradeChar = 'D+';
+          else if (total10 >= 4.0) gradeChar = 'D';
+          else gradeChar = 'F';
+        }
+        
+        // Check if passed
+        passed = ['A+', 'A', 'B+', 'B', 'C+', 'C', 'D+', 'D'].includes(gradeChar);
+        if (passed) {
+          passedCredits += credits;
+        }
+      }
+      
+      return {
+        ...grade,
+        calculated_grade_char: gradeChar,
+        passed,
+        has_scores: hasScores,
+        grade_points: hasScores ? (total4 || 0) * credits : 0
+      };
+    });
+    
+    const gpa = totalCredits > 0 ? (totalGradePoints / totalCredits) : 0;
+    
+    res.json({
+      student_id: studentId,
+      total_subjects: grades.length,
+      subjects_with_scores: gradesWithScores,
+      total_credits: totalCredits,
+      passed_credits: passedCredits,
+      total_grade_points: totalGradePoints,
+      gpa: parseFloat(gpa.toFixed(2)),
+      grade_details: gradeDetails,
+      calculation_summary: {
+        formula: 'GPA = Total Grade Points / Total Credits',
+        total_grade_points_calculation: `Sum of (total_4 * credits) for all subjects with scores`,
+        total_credits_calculation: `Sum of credits for all subjects with scores`,
+        pass_criteria: 'Grade D (4.0) or above'
+      }
+    });
+    
+  } catch (error) {
+    console.error('Error in debugStudentGPA:', error);
+    res.status(500).json({ error: error.message });
+  }
+};
+// Fix GPA calculation by recalculating total_4 and grade_char for all grades
+exports.fixGPACalculation = async (req, res) => {
+  try {
+    console.log('🔧 Starting GPA calculation fix...');
+    
+    // Get all grades that have total_10 but missing total_4 or grade_char
+    const gradesQuery = `
+      SELECT grade_id, total_10, total_4, grade_char
+      FROM grades 
+      WHERE total_10 IS NOT NULL 
+        AND (total_4 IS NULL OR grade_char IS NULL OR grade_char = '')
+    `;
+    
+    const gradesResult = await pool.query(gradesQuery);
+    const gradesToFix = gradesResult.rows;
+    
+    console.log(`📊 Found ${gradesToFix.length} grades to fix`);
+    
+    let fixedCount = 0;
+    const results = [];
+    
+    for (const grade of gradesToFix) {
+      const total10 = parseFloat(grade.total_10);
+      
+      // Calculate total_4 and grade_char using the same logic as calculateGrades
+      let total_4, grade_char;
+      
+      if (total10 >= 9.0) {
+        total_4 = 4.0;
+        grade_char = 'A+';
+      } else if (total10 >= 8.0) {
+        total_4 = 4.0;
+        grade_char = 'A';
+      } else if (total10 >= 7.5) {
+        total_4 = 3.5;
+        grade_char = 'B+';
+      } else if (total10 >= 7.0) {
+        total_4 = 3.0;
+        grade_char = 'B';
+      } else if (total10 >= 6.0) {
+        total_4 = 2.5;
+        grade_char = 'C+';
+      } else if (total10 >= 5.0) {
+        total_4 = 2.0;
+        grade_char = 'C';
+      } else if (total10 >= 4.5) {
+        total_4 = 1.5;
+        grade_char = 'D+';
+      } else if (total10 >= 4.0) {
+        total_4 = 1.0;
+        grade_char = 'D';
+      } else {
+        total_4 = 0.0;
+        grade_char = 'F';
+      }
+      
+      // Update the grade
+      const updateQuery = `
+        UPDATE grades 
+        SET total_4 = $1, grade_char = $2
+        WHERE grade_id = $3
+      `;
+      
+      await pool.query(updateQuery, [total_4, grade_char, grade.grade_id]);
+      
+      results.push({
+        grade_id: grade.grade_id,
+        total_10: total10,
+        old_total_4: grade.total_4,
+        new_total_4: total_4,
+        old_grade_char: grade.grade_char,
+        new_grade_char: grade_char
+      });
+      
+      fixedCount++;
+    }
+    
+    console.log(`✅ Fixed ${fixedCount} grades`);
+    
+    res.json({
+      message: `Successfully fixed ${fixedCount} grades`,
+      fixed_count: fixedCount,
+      total_found: gradesToFix.length,
+      results: results.slice(0, 10) // Show first 10 results
+    });
+    
+  } catch (error) {
+    console.error('Error fixing GPA calculation:', error);
+    res.status(500).json({ error: error.message });
+  }
+};

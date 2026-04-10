@@ -11,8 +11,10 @@ router.use((req, res, next) => {
 
 router.post('/', gradesController.enterGrade);
 router.post('/submit', gradesController.submitGradesForApproval);
+router.post('/fix-gpa', gradesController.fixGPACalculation);
 router.get('/section/:sectionId', gradesController.getGradesBySection);
 router.get('/students/:studentId', gradesController.getStudentGrades);
+router.get('/students/:studentId/debug', gradesController.debugStudentGPA);
 
 // Mobile app route
 router.get('/student', authMobile, gradesController.getStudentGradesMobile);
