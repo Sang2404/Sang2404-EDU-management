@@ -1,230 +1,130 @@
-# Quản Lý Sinh Viên
+# 🎓 Hệ Thống Quản Lý Đào Tạo Đa Nền Tảng (EDU Management System)
 
-Ứng dụng quản lý sinh viên toàn diện với các chức năng: quản lý môn học, lớp học phần, nhập điểm, duyệt điểm, xem điểm, điểm danh, và thống kê.
+## 📌 1. Giới Thiệu Dự Án (Introduction)
+Dự án **EDU Management System** là một giải pháp phần mềm toàn diện nhằm số hóa và tối ưu hóa quy trình quản lý đào tạo tại các cơ sở giáo dục. Hệ thống giải quyết các bài toán phức tạp trong việc quản lý điểm số, thời khóa biểu, yêu cầu học vụ và phân quyền người dùng đa cấp (Admin, Giảng viên, Sinh viên). Với việc cung cấp cả giao diện Web cho cán bộ/giảng viên và ứng dụng Mobile cho sinh viên, dự án hướng tới trải nghiệm người dùng đồng bộ, xuyên suốt và có khả năng vận hành thời gian thực.
 
-## 🚀 Công Nghệ
+## 🛠 2. Công Nghệ Sử Dụng (Technologies Used)
+Dự án được xây dựng dựa trên các công nghệ hiện đại, đảm bảo hiệu suất xử lý, tính bảo mật và khả năng mở rộng:
 
-- **Frontend**: React + Vite + Ant Design
-- **Backend**: Node.js + Express + PostgreSQL
-- **Authentication**: Google Sign-in
-- **Real-time**: Socket.io
+### 2.1. Backend (Server)
+| Trọng Tâm | Công Nghệ | Lý do lựa chọn |
+| :--- | :--- | :--- |
+| **Runtime & Framework** | `Node.js` & `Express.js` | Cơ chế non-blocking I/O của Node.js kết hợp với Express giúp xử lý hàng ngàn request đồng thời với độ trễ thấp, phù hợp cho hệ thống quản lý có lượng truy cập cao. |
+| **Cơ sở dữ liệu** | `PostgreSQL` | RDBMS mạnh mẽ, hỗ trợ ACID và xử lý giao dịch (transactions) phức tạp, tối quan trọng trong việc bảo toàn tính toàn vẹn dữ liệu điểm số và thông tin sinh viên. |
+| **Bảo mật & Xác thực** | `JWT` & `Bcrypt` | Bảo vệ thông tin bằng công nghệ mã hóa tiên tiến và cơ chế token-based stateless, phù hợp với kiến trúc RESTful phân tán và tích hợp Google Sign-in. |
+| **Real-time** | `Socket.IO` | Thiết lập kết nối web-socket hai chiều, cho phép cập nhật thông báo và trạng thái điểm số tức thời ngay khi có thay đổi từ hệ thống. |
+| **Tiện ích mở rộng** | `Firebase Admin`, `Nodemailer`, `Gemini AI` | Cung cấp push notifications cho Mobile, gửi email xác thực tự động và tích hợp mô hình AI (@google/generative-ai) để hỗ trợ phân tích dữ liệu, tự động hóa tương tác. |
 
-## � Chức Năng Chính
+### 2.2. Frontend (Web Application)
+| Trọng Tâm | Công Nghệ | Lý do lựa chọn |
+| :--- | :--- | :--- |
+| **Core Framework** | `React 18` & `Vite` | React tiêu chuẩn hóa việc tái sử dụng UI qua Virtual DOM cho trải nghiệm mượt mà, trong khi Vite mang lại tốc độ build/HMR cực nhanh nhằm đẩy nhanh tiến độ phát triển. |
+| **UI Components** | `Ant Design (antd)` | Cung cấp hệ thống giao diện chuẩn doanh nghiệp (Enterprise), đầy đủ layout, table, forms; giúp đồng nhất trải nghiệm UI/UX toàn hệ thống. |
+| **Quản lý State & Route** | `Context API` & `React Router 7` | Phục vụ điều hướng trang tốc độ cao (SPA) và quản lý trạng thái luồng dữ liệu (User Auth, Settings) không bị prop drilling. |
+| **Data Fetching** | `Axios` | Client HTTP mạnh mẽ với cơ chế interceptors thông minh, thuận tiện cho việc đính kèm Authentication Token cho mọi API call. |
 
-### Admin
-- Quản lý người dùng (sinh viên, giảng viên)
-- Quản lý môn học và lớp học phần
-- Duyệt bảng điểm
-- Xem thống kê
-
-### Giảng Viên
-- Nhập điểm cho sinh viên
-- Gửi bảng điểm để duyệt
-- Xem danh sách lớp học phần
-- Ghi danh sinh viên
-
-### Sinh Viên
-- Xem bảng điểm đã duyệt
-- Xem lịch học
-- Xem thông báo
-- Gửi yêu cầu học vụ
-
-## 🔧 Cài Đặt
-
-### Yêu Cầu
-- Node.js 16+
-- PostgreSQL 12+
-- npm hoặc yarn
-
-### Backend
-```bash
-cd server
-npm install
-npm start
-# Server chạy trên port 5001
-```
-
-### Frontend
-```bash
-cd web-app
-npm install
-npm run dev
-# Web app chạy trên port 3001
-```
-
-## 📊 Cấu Trúc Dự Án
-
-```
-├── server/                 # Backend
-│   ├── controllers/        # Logic xử lý
-│   │   ├── authController.js           # Xác thực & phân quyền
-│   │   ├── adminController.js          # Quản lý & import dữ liệu
-│   │   ├── gradesController.js         # Quản lý điểm
-│   │   ├── schedulesController.js      # Quản lý lịch học
-│   │   ├── requestsController.js       # Xử lý yêu cầu học vụ
-│   │   ├── statisticsController.js     # Thống kê & báo cáo
-│   │   └── ...
-│   ├── routes/            # API routes
-│   ├── services/          # Business logic
-│   └── config/            # Cấu hình
-├── web-app/               # Frontend
-│   ├── src/
-│   │   ├── pages/
-│   │   │   ├── admin/     # Trang Admin
-│   │   │   ├── lecturer/  # Trang Giảng Viên
-│   │   │   └── student/   # Trang Sinh Viên
-│   │   ├── components/    # Thành phần UI
-│   │   ├── context/       # State management
-│   │   └── config/        # Cấu hình
-│   └── public/            # Static files
-└── database/              # Database schema
-```
-
-## 🔐 Xác Thực
-
-Ứng dụng sử dụng Google Sign-in. Cần cấu hình:
-1. Google OAuth 2.0 credentials
-2. Whitelist email trong database
-
-## 📈 Quy Trình Nhập Điểm
-
-1. **Giảng viên nhập điểm** → Status: DRAFT
-2. **Giảng viên gửi duyệt** → Status: SUBMITTED
-3. **Admin duyệt** → Status: APPROVED
-4. **Sinh viên xem điểm** → Chỉ xem APPROVED
-
-## ✨ Tính Năng Nổi Bật
-
-### 1. 🔐 Phân Quyền Người Dùng (Role-Based Access Control)
-- 3 vai trò: Admin, Giảng Viên, Sinh Viên
-- Kiểm soát truy cập dựa trên role
-- Whitelist email cho phép đăng nhập
-- Bảo vệ route tự động
-
-### 2. 📊 Nhập Dữ Liệu Hàng Loạt từ Excel (Bulk Import)
-- Import người dùng, môn học, lớp học phần, lịch học
-- Validate dữ liệu tự động
-- Phát hiện trùng lặp và xung đột
-- Báo cáo chi tiết: Thành công/Bỏ qua/Lỗi
-
-### 3. 📝 Hệ Thống Quản Lý Điểm & Duyệt Điểm (Grade Flow)
-- Quy trình 3 bước: Nhập → Gửi duyệt → Phê duyệt
-- Tính điểm tự động: Chuyên cần 10% + Giữa kỳ 30% + Cuối kỳ 60%
-- Chuyển đổi thang điểm: 10 → 4 → Chữ (A, B+, C, D, F)
-- Sinh viên chỉ xem điểm đã phê duyệt
-
-### 4. 📅 Quản Lý Đào Tạo & Thời Khóa Biểu (Curriculum & Schedule)
-- Quản lý môn học, lớp học phần, khoa, ngành
-- Lịch học chi tiết: Ngày, tiết, phòng, tuần
-- Xem lịch riêng cho sinh viên và giảng viên
-- Quản lý phòng học và sức chứa
-
-### 5. 📋 Xử Lý Yêu Cầu Học Vụ (Academic Requests)
-- 3 loại yêu cầu: Phúc khảo, Bảo lưu, Học lại
-- Quy trình: Sinh viên gửi → Admin xử lý → Phản hồi
-- Yêu cầu phản hồi chi tiết từ Admin
-- Lịch sử yêu cầu đầy đủ
-
-### 6. 📈 Thống Kê và Báo Cáo (Statistics & Reports)
-- Tổng quan: Người dùng, sinh viên, giảng viên, môn học
-- Phân tích sinh viên: GPA, top 10, phân bố theo khoa/ngành
-- Thống kê lớp: Tỷ lệ lấp đầy, lớp đông/ít nhất
-- Phân bố điểm: Tỷ lệ đạt/trượt, điểm trung bình
-- Thống kê yêu cầu: Loại, trạng thái, thời gian xử lý
-
-## 🎯 API Chính
-
-### Nhập Điểm
-- `POST /grades` - Lưu điểm
-- `POST /grades/submit` - Gửi duyệt
-- `GET /grades/students/:studentId` - Xem điểm
-
-### Duyệt Điểm
-- `GET /admin/grades/pending` - Danh sách chờ duyệt
-- `POST /admin/sections/:sectionId/grades/approve` - Phê duyệt
-- `POST /admin/sections/:sectionId/grades/reject` - Từ chối
-
-### Nhập Dữ Liệu
-- `POST /admin/import/users` - Import người dùng
-- `POST /admin/import/subjects` - Import môn học
-- `POST /admin/import/course-sections` - Import lớp học phần
-- `POST /admin/import/schedules` - Import lịch học
-
-### Yêu Cầu Học Vụ
-- `POST /requests` - Gửi yêu cầu
-- `GET /requests/my-requests` - Xem yêu cầu của sinh viên
-- `GET /admin/requests` - Danh sách yêu cầu (Admin)
-- `POST /admin/requests/:id/approve` - Phê duyệt
-- `POST /admin/requests/:id/reject` - Từ chối
-
-### Thống Kê
-- `GET /statistics/overview` - Tổng quan
-- `GET /statistics/students` - Thống kê sinh viên
-- `GET /statistics/courses` - Thống kê lớp học phần
-- `GET /statistics/grades` - Thống kê điểm
-- `GET /statistics/requests` - Thống kê yêu cầu
-
-## 🧮 Công Thức Tính Điểm
-
-```
-Điểm tổng kết = Chuyên cần × 10% + Giữa kỳ × 30% + Cuối kỳ × 60%
-
-Chuyển đổi thang điểm:
-- Thang 10 → Thang 4: điểm_4 = (điểm_10 × 4) / 10
-- Thang 4 → Chữ:
-  - A: 3.5 - 4.0
-  - B+: 3.0 - 3.4
-  - B: 2.5 - 2.9
-  - C+: 2.0 - 2.4
-  - C: 1.5 - 1.9
-  - D+: 1.0 - 1.4
-  - D: 0.5 - 0.9
-  - F: < 0.5
-```
-
-## 🧪 Kiểm Tra
-
-### Tài Khoản Test
-- Admin: skillsaanh@gmail.com
-- Giảng viên: sinfour503@gmail.com
-- Sinh viên: 2224802010365@student.tdmu.edu.vn
-
-### Kiểm Tra Chức Năng
-1. Đăng nhập với tài khoản test
-2. Thực hiện các chức năng theo vai trò
-3. Kiểm tra console (F12) không có lỗi
-
-## 🐛 Troubleshooting
-
-**Lỗi 404 trên endpoint mới**
-- Restart server để load routes mới
-
-**Không thể đăng nhập**
-- Kiểm tra email có trong whitelist
-- Kiểm tra Google OAuth credentials
-
-**Điểm không hiển thị**
-- Kiểm tra status là APPROVED
-- Refresh page (F5)
-
-## � Hỗ Trợ
-
-Kiểm tra server logs:
-```bash
-# Terminal server
-npm start
-```
-
-Kiểm tra browser console:
-- Nhấn F12
-- Xem tab Console
-
-## � License
-
-MIT
+### 2.3. Mobile (Flutter App)
+| Trọng Tâm | Công Nghệ | Lý do lựa chọn |
+| :--- | :--- | :--- |
+| **Framework** | `Flutter` | Biên dịch native (native code) ra đa nền tảng (iOS, Android) từ một codebase chung duy nhất, mang lại hiệu suất cao với FPS ổn định. |
+| **State Management** | `Provider` | Giải pháp quản lý state chuẩn mực do Google khuyến nghị, dễ bảo trì, ràng buộc chặt chẽ UI với business logic ở tầng dưới. |
+| **Networking & Router** | `Dio`, `http` & `go_router` | Xử lý giao tiếp HTTP mạnh mẽ (hỗ trợ phân trang, cache) và cho phép điều hướng màn hình an toàn chuyên sâu. |
 
 ---
 
-**Phiên bản**: 1.0  
-**Cập nhật**: 2026-03-12
+## 🏗 3. Giải Pháp & Kiến Trúc (Architecture & Solutions)
 
+Dự án áp dụng kiến trúc phần mềm phân tầng (Layered Architecture), tách biệt mức độ phụ thuộc giữa Business Logic, Data Access và Presentation, giúp code đạt chuẩn Clean Code và khả năng mở rộng (Scalability) cao.
+
+### 3.1. Cấu Trúc Tổng Thể (Monorepo Ecosystem)
+Mô hình tổ chức thư mục ứng dụng theo dạng Monorepo giúp quản lý tập trung và tích hợp dễ dàng:
+```text
+├── server/                 # Backend API (Node.js/Express)
+│   ├── routes/             # Định tuyến, Cổng tiếp nhận Request HTTP (Endpoints)
+│   ├── controllers/        # Điều phối logic, Validate Dữ liệu In/Out
+│   ├── services/           # Trọng tâm xử lý Business Logic phức tạp
+│   ├── config/             # Tích hợp môi trường (Firebase, DB Pool, AI configs)
+│   └── (SQL Queries)       # Logic tương tác Database PostgreSQL bằng thư viện pg
+├── web-app/                # Web Dashboard Dành cho Cán bộ / Giảng viên (React)
+│   ├── src/components/     # UI Component tái sử dụng
+│   ├── src/pages/          # Routing Pages phân bổ theo (Admin/Lecturer/Student)
+│   └── src/context/        # Global State Context cho Auth, Preferences
+└── flutter_app/            # Ứng dụng di động (Frontend Client Sinh viên)
+    └── lib/                # Source code chính của ứng dụng
+```
+
+### 3.2. Technical Solutions & Design Patterns Cốt Lõi
+
+**A. Kiến trúc Backend: Controller - Service - Route Pattern**
+- **Vấn đề giải quyết:** Các dự án thuần Express thường gặp phải lỗi "Fat Controller" (Trộn lẫn API handling, logic tính toán số liệu và query SQL vào chung 1 file), gây ác mộng khi Unit Test, refactor và không tuân thủ Single Responsibility Principle.
+- **Giải pháp:** Áp dụng triệt để Pattern phân tầng. Tầng `Routes` chỉ lo định tuyến. `Controllers` chỉ tiếp nhận Input, gọi `Services` tương ứng và xuất Response format JSON chuẩn. Tầng `Services` sẽ là "Black Box" chứa toàn bộ công thức tính toán điểm rườm rà hay thuật toán Import - hoàn toàn độc lập với Express HTTP.
+
+**B. Hệ thống Kiểm Soát Truy Cập Dựa Trên Vai Trò (RBAC - Role-Based Access Control)**
+- **Vấn đề giải quyết:** Bài toán phân quyền đa cấp. Ví dụ: Cán bộ Đào Tạo có quyền sinh sát toàn bộ, trong khi đó Giảng Viên chỉ được chỉnh sửa cấu hình Lớp Học Phần họ dạy và Sinh viên chỉ có đặc quyền xem, cấm thao tác ghi nhận (Write).
+- **Giải pháp:** Sử dụng bộ Middleware tùy biến gắn kèm chu trình sống của mọi request. Payload mã hóa trong JWT tự động cung cấp định danh và Role. Trước khi Request chọc vào Endpoint nhảy vào Controller, nó bắt buộc phải qua được trạm thu phí Middleware kiểm tra: token hợp lệ + Role có mặt trong mảng quyền hạn cho phép của `[Route]` đó.
+
+**C. Xử lý State Machine cho Luồng Chốt Điểm (Grade Approval Workflow Cycle)**
+- **Vấn đề giải quyết:** Bảo vệ tính toàn vẹn của một bảng điểm, không cho phép kẽ hở việc sửa đổi điểm trái phép sau khi đã nghiệm thu.
+- **Giải pháp:** Xây dựng cơ chế *Trạng thái trạng thái (State Machine)* đối với trạng thái bảng điểm, hoạt động khép kín theo 3 nút mạng:
+  - `DRAFT` (Bản Nháp): Quyền thao tác thuộc về Giảng viên biên soạn trực tiếp.
+  - `SUBMITTED` (Chờ Duyệt): Khóa toàn bộ Endpoint ghi/sửa dữ liệu từ Giảng viên. Bàn giao quyền xem/kiểm duyệt sang màn hình Admin.
+  - `APPROVED` (Chốt sổ): Giai đoạn khóa Vĩnh viễn. Real-time kích hoạt Socket.IO push Notification về thiết bị Mobile của tất cả sinh viên trong Lớp học phần hiện tại.
+
+**D. Kỹ Thuật Xử Lý Khối Lượng Dữ Liệu Lớn (Bulk Import Transactions)**
+- **Vấn đề giải quyết:** Hành động Admin upload ngàn mẫu tin bảng điểm, sinh viên bằng File Excel (.xlsx) dễ làm tràn bộ nhớ, làm nghẽn DB. Hoặc chèn 99 dòng thành công, 1 dòng hỏng khiến dữ liệu bảng bị ô nhiễm gãy rác.
+- **Giải pháp:** Sử dụng chiến lược *Batch Processing* đi kèm tư tưởng *Database Transactions* (`BEGIN`, `COMMIT`, `ROLLBACK`). Phân mảnh hàng chục ngàn dòng dư liệu array trong node. Tự động kiểm tra Validation trùng lặp (Conflicts). Nếu có 1 field gây ra lỗi logic (vd: Mã Môn Học không tồn tại) - Hệ thống kích hoạt `ROLLBACK` hủy lập tức toàn chu kỳ bảo vệ database 100% nguyên vẹn, trả về HTTP kèm Report chi tiết số dòng lỗi cho UI React khắc phục.
+
+**E. Bảo Mật Luồng Dữ Liệu (Secure Pipeline)**
+- Mô phỏng môi trường HTTPS/CORS chặt chẽ. Trách tấn công XSS và CSRF qua việc lưu trữ Auth JWT bằng quy chuẩn Best Practice `Secure Storage/HttpOnly`. 
+
+---
+
+## 🚀 4. Hướng Dẫn Cài Đặt (Setup & Installation)
+
+Để deploy dự án trên môi trường Local Development, bạn yêu cầu thực hiện đầy đủ các bước dưới đây.
+
+### 4.1. Môi trường yêu cầu (Prerequisites)
+- **Node.js** Environment (Phiên bản v16.x trở lên).
+- Hệ quản trị CSDL **PostgreSQL** (v12 trở lên).
+- **Flutter SDK** v3.10.x trở lên (Dành cho việc dev App Mobile).
+
+### 4.2. Trình tự Khởi chạy Hệ thống Local
+
+**BƯỚC 1: Clone và lấy Source Code**
+```bash
+git clone https://github.com/HuynSang2404/Sang2404-EDU-management.git
+cd Sang2404-EDU-management
+```
+
+**BƯỚC 2: Cài Đặt Môi Trường Khép Kín (Sử dụng lệnh root)**
+Một lệnh cài đặt toàn bộ `node_modules` ở Core Root lẫn Sub-directories một phát nhờ cấu hình script thông minh tại `package.json`:
+```bash
+npm run install-all
+```
+
+**BƯỚC 3: Triển khai Database**
+1. Đăng nhập Postgres, tạo Database mang tên tùy theo cấu hình (vd: `edu_management`).
+2. Mở thư mục `database/` và thực thi kịch bản file SQL cung cấp vào DB nói trên, giúp khởi chạy toàn bộ Entity Schemas cần thiết.
+3. Chỉnh sửa file `.env` tại thư mục `/server` để cấu hình string connection (HOST, PORT, USER, PASS) hợp lệ.
+
+**BƯỚC 4: Boot Hệ Sinh Thái Web/Server**
+Quay trở lại thư mục nguồn Root và kích hoạt cơ chế `concurrently`:
+```bash
+npm run dev
+```
+Tự động kích hoạt song song 2 dịch vụ:
+- 🌐 **Web Frontend (React/Vite Dashboard):** Truy cập tại `http://localhost:3001`
+- 🖥️ **Backend Server (Node.js API):** Listener tại `http://localhost:5001`
+
+**BƯỚC 5: Khởi Chạy Môi Trường Mobile (Optional cho Flutter)**
+Tại một màn hình Terminal thứ hai, di chuyển trong cây thư mục `flutter_app`:
+```bash
+cd flutter_app
+flutter pub get
+flutter run
+```
+Chọn giả lập Android/iOS Simulator hoặc cài lên thiết bị trực tiếp để trải nghiệm giao diện người dùng Sinh viên.
+
+---
+**Tác giả:** Huỳnh Văn Sáng  
+**Bản quyền:** Đề tài Môn Học - MIT License

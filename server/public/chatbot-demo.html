@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Chatbot Demo</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        
+        .chatbot-container {
+            width: 400px;
+            height: 600px;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        
+        .chatbot-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            text-align: center;
+        }
+        
+        .chatbot-header h2 {
+            margin: 0;
+            font-size: 20px;
+        }
+        
+        .chatbot-header p {
+            margin: 5px 0 0 0;
+            font-size: 12px;
+            opacity: 0.9;
+        }
+        
+        .messages {
+            flex: 1;
+            padding: 20px;
+            overflow-y: auto;
+            background: #f5f5f5;
+        }
+        
+        .message {
+            margin-bottom: 15px;
+            display: flex;
+            animation: slideIn 0.3s ease;
+        }
+        
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        .message.user {
+            justify-content: flex-end;
+        }
+        
+        .message-content {
+            max-width: 70%;
+            padding: 12px 16px;
+            border-radius: 18px;
+            word-wrap: break-word;
+        }
+        
+        .message.user .message-content {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        
+        .message.assistant .message-content {
+            background: white;
+            color: #333;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 10px;
+            color: #666;
+            font-style: italic;
+        }
+        
+        .suggestions {
+            padding: 10px 20px;
+            background: white;
+            border-top: 1px solid #eee;
+        }
+        
+        .suggestions-title {
+            font-size: 12px;
+            color: #666;
+            margin-bottom: 8px;
+        }
+        
+        .suggestion-btn {
+            display: inline-block;
+            margin: 4px;
+            padding: 6px 12px;
+            background: #f0f0f0;
+            border: none;
+            border-radius: 15px;
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .suggestion-btn:hover {
+            background: #667eea;
+            color: white;
+        }
+        
+        .input-area {
+            padding: 20px;
+            background: white;
+            border-top: 1px solid #eee;
+            display: flex;
+            gap: 10px;
+        }
+        
+        .student-select {
+            width: 100%;
+            padding: 10px;
+            border: 2px solid #eee;
+            border-radius: 10px;
+            font-size: 14px;
+            margin-bottom: 10px;
+        }
+        
+        input[type="text"] {
+            flex: 1;
+            padding: 12px;
+            border: 2px solid #eee;
+            border-radius: 25px;
+            font-size: 14px;
+            outline: none;
+            transition: border 0.2s;
+        }
+        
+        input[type="text"]:focus {
+            border-color: #667eea;
+        }
+        
+        button.send-btn {
+            padding: 12px 24px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 25px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: transform 0.2s;
+        }
+        
+        button.send-btn:hover {
+            transform: scale(1.05);
+        }
+        
+        button.send-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+    </style>
+</head>
+<body>
+    <div class="chatbot-container">
+        <div class="chatbot-header">
+            <h2>🤖 AI Tư vấn Học tập</h2>
+            <p>Chatbot biết điểm số của bạn</p>
+        </div>
+        
+        <div class="messages" id="messages">
+            <div class="message assistant">
+                <div class="message-content">
+                    Xin chào! Tôi là trợ lý AI. Tôi biết điểm số của bạn và có thể tư vấn cụ thể. Bạn muốn hỏi gì? 😊
+                </div>
+            </div>
+        </div>
+        
+        <div class="suggestions">
+            <div class="suggestions-title">💡 Gợi ý câu hỏi:</div>
+            <button class="suggestion-btn" onclick="askQuestion('Điểm của tôi thế nào?')">Điểm của tôi thế nào?</button>
+            <button class="suggestion-btn" onclick="askQuestion('Tôi nên học môn gì kỳ sau?')">Môn gì kỳ sau?</button>
+            <button class="suggestion-btn" onclick="askQuestion('Làm sao cải thiện điểm?')">Cải thiện điểm?</button>
+        </div>
+        
+        <div class="input-area">
+            <div style="width: 100%;">
+                <select class="student-select" id="studentSelect">
+                    <option value="2224001">Phạm Văn D (2224001)</option>
+                    <option value="2224002">Hoàng Thị E (2224002)</option>
+                    <option value="2224003">Vũ Văn F (2224003)</option>
+                    <option value="2224004">Ngô Thị G (2224004)</option>
+                    <option value="2224005">Đỗ Văn H (2224005)</option>
+                    <option value="2224006">Bùi Thị I (2224006)</option>
+                </select>
+                <div style="display: flex; gap: 10px;">
+                    <input 
+                        type="text" 
+                        id="messageInput" 
+                        placeholder="Hỏi gì đi..."
+                        onkeypress="if(event.key==='Enter') sendMessage()"
+                    />
+                    <button class="send-btn" onclick="sendMessage()" id="sendBtn">Gửi</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        const API_URL = 'http://localhost:5001/api/ai-chat';
+        
+        function addMessage(role, content) {
+            const messagesDiv = document.getElementById('messages');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${role}`;
+            messageDiv.innerHTML = `<div class="message-content">${content}</div>`;
+            messagesDiv.appendChild(messageDiv);
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+        }
+        
+        function showLoading() {
+            const messagesDiv = document.getElementById('messages');
+            const loadingDiv = document.createElement('div');
+            loadingDiv.className = 'loading';
+            loadingDiv.id = 'loading';
+            loadingDiv.textContent = '🤔 Đang suy nghĩ...';
+            messagesDiv.appendChild(loadingDiv);
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+        }
+        
+        function hideLoading() {
+            const loadingDiv = document.getElementById('loading');
+            if (loadingDiv) {
+                loadingDiv.remove();
+            }
+        }
+        
+        async function sendMessage() {
+            const input = document.getElementById('messageInput');
+            const sendBtn = document.getElementById('sendBtn');
+            const studentSelect = document.getElementById('studentSelect');
+            const message = input.value.trim();
+            
+            if (!message) return;
+            
+            // Disable input
+            input.disabled = true;
+            sendBtn.disabled = true;
+            
+            // Add user message
+            addMessage('user', message);
+            input.value = '';
+            
+            // Show loading
+            showLoading();
+            
+            try {
+                const response = await fetch(`${API_URL}/message`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        studentId: studentSelect.value,
+                        message: message
+                    })
+                });
+                
+                const data = await response.json();
+                
+                hideLoading();
+                
+                if (data.success) {
+                    addMessage('assistant', data.reply);
+                } else {
+                    addMessage('assistant', '❌ Xin lỗi, có lỗi xảy ra: ' + (data.error || 'Unknown error'));
+                }
+            } catch (error) {
+                hideLoading();
+                addMessage('assistant', '❌ Không thể kết nối đến server. Vui lòng kiểm tra:<br>1. Server đã chạy chưa?<br>2. API key đã setup chưa?');
+                console.error('Error:', error);
+            } finally {
+                // Enable input
+                input.disabled = false;
+                sendBtn.disabled = false;
+                input.focus();
+            }
+        }
+        
+        function askQuestion(question) {
+            document.getElementById('messageInput').value = question;
+            sendMessage();
+        }
+        
+        // Focus input on load
+        document.getElementById('messageInput').focus();
+    </script>
+</body>
+</html>
