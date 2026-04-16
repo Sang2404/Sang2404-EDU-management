@@ -1,4 +1,4 @@
-# 🎓 Hệ Thống Quản Lý Đào Tạo Đa Nền Tảng (EDU Management System)
+# 🎓 Phần mềm Quản Lý Sinh Viên (EDU Management System)
 
 ## 📌 1. Giới Thiệu Dự Án (Introduction)
 Dự án **EDU Management System** là một giải pháp phần mềm toàn diện nhằm số hóa và tối ưu hóa quy trình quản lý đào tạo tại các cơ sở giáo dục. Hệ thống giải quyết các bài toán phức tạp trong việc quản lý điểm số, thời khóa biểu, yêu cầu học vụ và phân quyền người dùng đa cấp (Admin, Giảng viên, Sinh viên). Với việc cung cấp cả giao diện Web cho cán bộ/giảng viên và ứng dụng Mobile cho sinh viên, dự án hướng tới trải nghiệm người dùng đồng bộ, xuyên suốt và có khả năng vận hành thời gian thực.
@@ -126,5 +126,5 @@ flutter run
 Chọn giả lập Android/iOS Simulator hoặc cài lên thiết bị trực tiếp để trải nghiệm giao diện người dùng Sinh viên.
 
 ---
-**Tác giả:** Huỳnh Văn Sáng  
+**Tác giả:** Huỳnh Văn Sang  
 **Bản quyền:** Đề tài Môn Học - MIT License
