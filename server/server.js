@@ -17,6 +17,7 @@ const requestsRoutes = require('./routes/requests');
 const statisticsRoutes = require('./routes/statistics');
 const attendanceRoutes = require('./routes/attendance');
 const notificationRoutes = require('./routes/notifications');
+const aiChatRoutes = require('./routes/aiChat');
 
 // Import Socket.io handler
 const setupSocketHandlers = require('./services/socketHandler');
@@ -36,12 +37,20 @@ app.set('io', io);
 const port = process.env.PORT || 5000;
 
 // Middleware
+app.use((req, res, next) => {
+  console.log(`[${new Date().toISOString()}] ${req.method} ${req.url}`);
+  next();
+});
+
 app.use(cors({
   origin: '*', // Allow all origins for dev
   methods: ['GET', 'POST', 'PUT', 'DELETE'],
   allowedHeaders: ['Content-Type', 'Authorization']
 }));
 app.use(express.json());
+
+// Serve static files (for chatbot demo)
+app.use(express.static('public'));
 
 // Security Headers Middleware
 app.use((req, res, next) => {
@@ -85,6 +94,7 @@ app.use('/api/academic-requests', requestsRoutes);
 app.use('/api/admin/statistics', statisticsRoutes);
 app.use('/api/attendance', attendanceRoutes);
 app.use('/api/notifications', notificationRoutes);
+app.use('/api/ai-chat', aiChatRoutes);
 
 // Setup Socket.io handlers
 setupSocketHandlers(io);

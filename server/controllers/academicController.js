@@ -861,6 +861,90 @@ exports.getSectionsForStudent = async (req, res) => {
   }
 };
 // Mobile app endpoints
+// Debug endpoint để kiểm tra dữ liệu schedule
+exports.debugStudentSchedule = async (req, res) => {
+  try {
+    const studentId = req.user.student_id;
+    
+    console.log('=== DEBUG STUDENT SCHEDULE ===');
+    console.log('Student ID:', studentId);
+    
+    // Kiểm tra raw data từ database
+    const rawQuery = `
+      SELECT 
+        s.schedule_id,
+        s.day_of_week,
+        s.start_period,
+        s.end_period,
+        s.room,
+        cs.section_code,
+        sub.subject_name,
+        sub.credits,
+        l.full_name as lecturer_name,
+        -- Debug thêm thông tin
+        s.section_id,
+        cs.subject_id,
+        cs.lecturer_id
+      FROM schedules s
+      JOIN course_sections cs ON s.section_id = cs.section_id
+      JOIN subjects sub ON cs.subject_id = sub.subject_id
+      JOIN lecturers lec ON cs.lecturer_id = lec.lecturer_id
+      JOIN users l ON lec.user_id = l.user_id
+      JOIN section_students ss ON cs.section_id = ss.section_id
+      WHERE ss.student_id = $1
+      ORDER BY s.day_of_week, s.start_period
+    `;
+
+    const result = await pool.query(rawQuery, [studentId]);
+    
+    console.log('Raw schedule data:');
+    result.rows.forEach((row, index) => {
+      console.log(`Record ${index + 1}:`, {
+        schedule_id: `${row.schedule_id} (${typeof row.schedule_id})`,
+        day_of_week: `${row.day_of_week} (${typeof row.day_of_week})`,
+        start_period: `${row.start_period} (${typeof row.start_period})`,
+        end_period: `${row.end_period} (${typeof row.end_period})`,
+        credits: `${row.credits} (${typeof row.credits})`,
+        section_code: `${row.section_code} (${typeof row.section_code})`,
+      });
+    });
+    
+    // Kiểm tra data types và invalid values
+    const issues = [];
+    result.rows.forEach((row, index) => {
+      if (row.day_of_week < 1 || row.day_of_week > 7) {
+        issues.push(`Record ${index + 1}: Invalid day_of_week = ${row.day_of_week}`);
+      }
+      if (row.start_period < 1 || row.start_period > 15) {
+        issues.push(`Record ${index + 1}: Invalid start_period = ${row.start_period}`);
+      }
+      if (row.end_period < 1 || row.end_period > 15) {
+        issues.push(`Record ${index + 1}: Invalid end_period = ${row.end_period}`);
+      }
+      if (typeof row.schedule_id !== 'number') {
+        issues.push(`Record ${index + 1}: schedule_id is not number: ${typeof row.schedule_id}`);
+      }
+    });
+    
+    res.json({
+      success: true,
+      debug_info: {
+        student_id: studentId,
+        total_records: result.rows.length,
+        issues: issues,
+        raw_data: result.rows
+      }
+    });
+  } catch (error) {
+    console.error('Debug schedule error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Debug failed',
+      error: error.message
+    });
+  }
+};
+
 exports.getStudentSchedule = async (req, res) => {
   try {
     const studentId = req.user.student_id;
@@ -874,15 +958,21 @@ exports.getStudentSchedule = async (req, res) => {
 
     const query = `
       SELECT 
-        s.schedule_id,
-        s.day_of_week,
-        s.start_period,
-        s.end_period,
-        s.room,
-        cs.section_code as section_name,
-        sub.subject_name,
-        sub.credits,
-        l.full_name as lecturer_name
+        s.schedule_id::integer as schedule_id,
+        CASE 
+          WHEN s.day_of_week > 7 THEN ((s.day_of_week - 1) % 7) + 1
+          WHEN s.day_of_week < 1 THEN 1
+          ELSE s.day_of_week 
+        END::integer as day_of_week,
+        s.start_period::integer as start_period,
+        s.end_period::integer as end_period,
+        COALESCE(s.room, '') as room,
+        COALESCE(cs.section_code, '') as section_code,
+        COALESCE(sub.subject_name, '') as subject_name,
+        COALESCE(sub.subject_id, '') as subject_id,
+        COALESCE(sub.credits, 0)::integer as credits,
+        COALESCE(l.full_name, '') as lecturer_name,
+        cs.section_id::integer as section_id
       FROM schedules s
       JOIN course_sections cs ON s.section_id = cs.section_id
       JOIN subjects sub ON cs.subject_id = sub.subject_id
@@ -890,14 +980,31 @@ exports.getStudentSchedule = async (req, res) => {
       JOIN users l ON lec.user_id = l.user_id
       JOIN section_students ss ON cs.section_id = ss.section_id
       WHERE ss.student_id = $1
-      ORDER BY s.day_of_week, s.start_period
+      ORDER BY day_of_week, start_period
     `;
 
     const result = await pool.query(query, [studentId]);
     
+    // Validate data before sending
+    const validatedSchedules = result.rows.map(row => ({
+      schedule_id: parseInt(row.schedule_id) || 0,
+      section_id: parseInt(row.section_id) || 0,
+      subject_name: String(row.subject_name || ''),
+      subject_id: String(row.subject_id || ''),
+      section_code: String(row.section_code || ''),
+      lecturer_name: String(row.lecturer_name || ''),
+      day_of_week: Math.max(1, Math.min(7, parseInt(row.day_of_week) || 1)),
+      start_period: Math.max(1, Math.min(15, parseInt(row.start_period) || 1)),
+      end_period: Math.max(1, Math.min(15, parseInt(row.end_period) || 1)),
+      room: String(row.room || ''),
+      credits: parseInt(row.credits) || 0
+    }));
+    
+    console.log('Validated schedule data:', JSON.stringify(validatedSchedules, null, 2));
+    
     res.json({
       success: true,
-      schedules: result.rows
+      schedules: validatedSchedules
     });
   } catch (error) {
     console.error('Error fetching student schedule:', error);

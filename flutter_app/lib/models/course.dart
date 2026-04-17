@@ -58,15 +58,34 @@ class Course {
   // Generate course duration based on semester and academic year
   String get courseDuration {
     if (semester != null && academicYear != null) {
-      // Assuming semester format like "HK1", "HK2", etc.
+      // Parse academic year safely (handle format like "2025-2026")
+      int startYear = _parseAcademicYear(academicYear!);
+      
       if (semester == 'HK1') {
-        return 'Tháng 9 - Tháng 12 $academicYear';
+        return 'Tháng 9 - Tháng 12 $startYear';
       } else if (semester == 'HK2') {
-        return 'Tháng 1 - Tháng 5 ${int.parse(academicYear!) + 1}';
+        return 'Tháng 1 - Tháng 5 ${startYear + 1}';
       } else if (semester == 'HK3') {
-        return 'Tháng 6 - Tháng 8 ${int.parse(academicYear!) + 1}';
+        return 'Tháng 6 - Tháng 8 ${startYear + 1}';
       }
     }
     return 'Chưa xác định';
+  }
+
+  // Safely parse academic year from formats like "2025-2026" or "2025"
+  int _parseAcademicYear(String academicYear) {
+    try {
+      // Handle format "2025-2026" - take the first year
+      if (academicYear.contains('-')) {
+        final parts = academicYear.split('-');
+        return int.parse(parts[0].trim());
+      }
+      // Handle format "2025"
+      return int.parse(academicYear.trim());
+    } catch (e) {
+      print('Error parsing academic year: $academicYear - $e');
+      // Return current year as fallback
+      return DateTime.now().year;
+    }
   }
 }

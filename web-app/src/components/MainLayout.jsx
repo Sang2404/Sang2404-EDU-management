@@ -15,6 +15,7 @@ import {
 } from '@ant-design/icons';
 import { useNavigate, Outlet, useLocation } from 'react-router-dom';
 import NotificationBell from './NotificationBell';
+import AIChatbot from './AIChatbot';
 
 const { Header, Sider, Content } = Layout;
 const { Title } = Typography;
@@ -193,6 +194,8 @@ const MainLayout = () => {
         <Content style={{ margin: '24px 16px', padding: 24, minHeight: 280, background: colorBgContainer, borderRadius: borderRadiusLG }}>
           <Outlet />
         </Content>
+        {/* AI Chatbot - chỉ hiển thị cho sinh viên */}
+        {user.role === 'STUDENT' && <AIChatbot />}
       </Layout>
     </Layout>
   );

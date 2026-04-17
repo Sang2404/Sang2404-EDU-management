@@ -35,6 +35,7 @@ router.get('/students/:studentId/sections', academicController.getSectionsForStu
 
 // Mobile app routes (protected with JWT)
 router.get('/student-schedule', authMobile, academicController.getStudentSchedule);
+router.get('/debug-schedule', authMobile, academicController.debugStudentSchedule);
 router.get('/student-courses', authMobile, academicController.getStudentCourses);
 router.get('/student-sections', authMobile, academicController.getStudentSections);
 

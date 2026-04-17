@@ -5,6 +5,9 @@ node_modules/
 # Environment variables
 .env
 */.env
+server/.env
+web-app/.env
+flutter_app/.env
 
 # Firebase credentials
 serviceAccountKey.json
@@ -16,6 +19,8 @@ dist/
 build/
 */dist/
 */build/
+web-app/dist/
+flutter_app/build/
 
 # Logs
 *.log
@@ -39,7 +44,29 @@ Thumbs.db
 *.temp
 ~$*
 
-# Test files (optional - keep if you want to share tests)
-# *.test.js
-# *.spec.js
-node_modules
+# Office temporary files
+~$*.docx
+~$*.xlsx
+~$*.pptx
+
+# Flutter specific
+flutter_app/.dart_tool/
+flutter_app/.flutter-plugins
+flutter_app/.flutter-plugins-dependencies
+flutter_app/.packages
+flutter_app/.pub-cache/
+flutter_app/.pub/
+flutter_app/ios/Pods/
+flutter_app/ios/.symlinks/
+flutter_app/android/.gradle/
+flutter_app/android/app/debug/
+flutter_app/android/app/profile/
+flutter_app/android/app/release/
+
+# Test coverage
+coverage/
+*/coverage/
+
+# Package lock files (optional - uncomment if you want to ignore them)
+# package-lock.json
+# */package-lock.json
